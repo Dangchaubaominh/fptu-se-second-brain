@@ -38,22 +38,6 @@ lib/
 
 Luồng dữ liệu: `VaultRepository` (file) → `VaultNotifier` (Riverpod, dựng `VaultIndex` bất biến) → các trang UI. Khi ghi file, app cập nhật index ngay mà không quét lại cả vault. Khi file bị sửa từ bên ngoài (ví dụ trong Obsidian), watcher chỉ đọc lại đúng file đó. Editor chỉ nạp lại nội dung khi không có thay đổi chưa lưu.
 
-## Chạy dự án
-
-Flutter SDK ở `C:\src\flutter` (3.47.2). Nên thêm `C:\src\flutter\bin` vào PATH.
-
-1. **Bật Developer Mode** của Windows. Plugin (file_picker, shared_preferences, url_launcher) cần symlink:
-   `start ms-settings:developers`
-2. **Cài Visual Studio 2022**, chọn workload *Desktop development with C++* (MSVC, C++ CMake tools, Windows SDK). `flutter doctor` phải báo ✓ cho Visual Studio.
-3. Chạy:
-   ```
-   flutter pub get
-   flutter run -d windows
-   ```
-4. Trong app, chọn **Tạo vault mẫu FPTU SE** hoặc **Mở Obsidian vault có sẵn**. Sau đó vào **Cài đặt → Trợ lý AI**, nhập Anthropic API key (hoặc đặt biến môi trường `ANTHROPIC_API_KEY`).
-
-Test: `flutter test` (unit test phần core + smoke test render mọi trang ở 2 kích thước cửa sổ).
-
 ## Quy ước dữ liệu trong vault
 
 ```markdown

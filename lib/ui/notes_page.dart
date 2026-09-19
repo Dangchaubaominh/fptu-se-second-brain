@@ -8,6 +8,7 @@ import '../core/flashcards.dart';
 import '../core/vault_index.dart';
 import '../state/providers.dart';
 import 'ai_panel.dart';
+import 'markdown_editor.dart';
 import 'note_preview.dart';
 import 'widgets.dart';
 
@@ -148,7 +149,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                     onTrash: _trash,
                   ),
                   const Divider(),
-                  Expanded(child: _buildEditorArea()),
+                  Expanded(child: _buildEditorArea(index)),
                 ]),
               ),
       ),
@@ -159,19 +160,8 @@ class _NotesPageState extends ConsumerState<NotesPage> {
     ]);
   }
 
-  Widget _buildEditorArea() {
-    final editor = Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 16, 16),
-      child: TextField(
-        controller: _ctrl,
-        onChanged: _onChanged,
-        maxLines: null,
-        expands: true,
-        textAlignVertical: TextAlignVertical.top,
-        style: const TextStyle(fontFamily: 'Consolas', fontSize: 14, height: 1.5),
-        decoration: const InputDecoration.collapsed(hintText: 'Viết Markdown… dùng [[ ]] để liên kết, Câu hỏi::Trả lời để tạo flashcard'),
-      ),
-    );
+  Widget _buildEditorArea(VaultIndex index) {
+    final editor = MarkdownEditor(controller: _ctrl, onChanged: _onChanged, index: index, currentPath: _path);
     final preview = ValueListenableBuilder(
       valueListenable: _ctrl,
       builder: (_, v, _) => NotePreview(content: v.text),
