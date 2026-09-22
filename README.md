@@ -126,13 +126,3 @@ Người dùng cài bản MSIX:
 2. Mở file `.msix` và bấm **Install**. Các bản sau cài đè để cập nhật, dữ liệu vault không bị ảnh hưởng.
 
 Không cần chứng chỉ thì cứ dùng bản `.zip`: giải nén rồi chạy `fptu_brain.exe`.
-
-## Lộ trình phát triển
-
-- [x] Đổi tên note và tự cập nhật mọi `[[link]]` trỏ tới nó
-- [x] Gợi ý tự động khi gõ `[[` trong editor
-- [x] Quick switcher (Ctrl+O)
-- [x] Hiển thị ảnh nhúng `![[image.png]]` từ vault
-- [x] AI: hỏi đáp trên toàn vault, sinh đề trắc nghiệm kiểu FE theo môn
-- [x] Thống kê ôn tập (heatmap, retention), xuất/nhập bộ thẻ
-- [x] Đóng gói bản cài `.msix` cho Windows
