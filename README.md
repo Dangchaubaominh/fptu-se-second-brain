@@ -9,6 +9,99 @@
 | AI Integration | Claude API (`claude-opus-5`): tóm tắt note, sinh flashcard, chat về note, hỏi đáp trên toàn vault có trích nguồn, sinh đề trắc nghiệm kiểu FE (structured JSON output + prompt caching) |
 | UI/UX | Material 3, màu FPT, dashboard tiến độ, graph view tương tác, tìm kiếm không dấu, gợi ý `[[`, quick switcher, ôn tập bằng bàn phím, thống kê heatmap |
 
+## Cài đặt
+
+**Yêu cầu:** Windows 10 hoặc 11 (64-bit). Tính năng AI cần kết nối Internet và một Anthropic API key. Các tính năng còn lại chạy offline.
+
+Tải bản mới nhất ở trang [Releases](https://github.com/Dangchaubaominh/fptu-se-second-brain/releases/latest), chọn **một** trong hai cách:
+
+### Cách 1: Bản cài đặt `.msix` (khuyên dùng)
+
+App có trong Start Menu, gỡ được như các app khác.
+
+1. Tải `fptu-brain.cer` và `fptu-brain-vX.Y.Z.msix`.
+2. **Chỉ lần đầu trên mỗi máy:** bấm đúp `fptu-brain.cer` → **Install Certificate** → chọn **Local Machine** → **Next** → **Place all certificates in the following store** → **Browse** → **Trusted People** → **OK** → **Next** → **Finish**. Windows sẽ hỏi quyền Admin.
+3. Bấm đúp file `.msix` → **Install**. Mở app từ Start Menu với tên "FPTU SE Second Brain".
+
+Nếu Windows báo không tin cậy được nhà phát hành, hãy kiểm tra lại bước 2: chứng chỉ phải nằm trong **Trusted People** của **Local Machine**, không phải Current User.
+
+### Cách 2: Bản giải nén `.zip`
+
+Không cần cài chứng chỉ và không cần quyền Admin.
+
+1. Tải `fptu-brain-windows-vX.Y.Z.zip` và giải nén vào một thư mục, ví dụ `D:\Apps\FPTU Brain`.
+2. Chạy `fptu_brain.exe`. Có thể chuột phải → **Send to → Desktop (create shortcut)** để tạo lối tắt.
+3. Nếu Windows SmartScreen cảnh báo, chọn **More info → Run anyway**. App chưa được ký bằng chứng chỉ thương mại nên SmartScreen chưa nhận diện được.
+
+Giữ nguyên cả thư mục sau khi giải nén: `fptu_brain.exe` cần các file `.dll` và thư mục `data` nằm cạnh nó.
+
+### Cập nhật
+
+Khi có bản mới, app hiện thông báo **"Có bản x.y.z, tải về?"** lúc khởi động. Bạn cũng có thể vào **Cài đặt → Phiên bản → Kiểm tra cập nhật**.
+- Bản `.msix`: tải file `.msix` mới rồi mở để cài đè. Không cần cài lại chứng chỉ.
+- Bản `.zip`: đóng app, giải nén bản mới đè lên thư mục cũ.
+
+Ghi chú, flashcard và lịch ôn nằm trong vault của bạn, không nằm trong thư mục app, nên cập nhật không làm mất dữ liệu.
+
+### Gỡ cài đặt
+
+- Bản `.msix`: **Settings → Apps → Installed apps → FPTU SE Second Brain → Uninstall**.
+- Bản `.zip`: xóa thư mục đã giải nén.
+
+Vault không bị xóa theo. Muốn gỡ luôn chứng chỉ thì mở `certlm.msc` → **Trusted People → Certificates** → xóa "FPTU SE Second Brain".
+
+## Hướng dẫn sử dụng
+
+### 1. Mở hoặc tạo vault
+
+Lần đầu mở app, chọn một trong hai:
+- **Mở Obsidian vault có sẵn**: chọn thư mục vault bạn đang dùng với Obsidian. App đọc và ghi trực tiếp các file `.md` trong đó.
+- **Tạo vault mẫu FPTU SE**: chọn nơi lưu, app tạo thư mục `FPTU-SE-Brain` gồm lộ trình 9 kỳ, khoảng 40 môn, các note khái niệm và flashcard mẫu.
+
+Muốn dùng song song với Obsidian: mở Obsidian → **Open folder as vault** → chọn cùng thư mục. Sửa ở bên nào thì bên kia tự cập nhật. Đổi vault khác trong **Cài đặt → Vault**.
+
+### 2. Bật trợ lý AI (tùy chọn)
+
+1. Tạo API key tại [console.anthropic.com](https://console.anthropic.com) (mục API Keys). Việc gọi API có tính phí theo lượng sử dụng của tài khoản Anthropic.
+2. Trong app vào **Cài đặt → Trợ lý AI (Claude)**, dán key, bấm **Lưu** rồi **Kiểm tra kết nối**.
+
+Key chỉ lưu trên máy của bạn, không ghi vào vault. Cũng có thể đặt biến môi trường `ANTHROPIC_API_KEY` thay vì nhập trong app.
+
+### 3. Theo dõi môn học
+
+- Trang **Môn học** liệt kê các môn theo kỳ. Bấm vào nhãn trạng thái trên thẻ môn để đổi giữa **Chưa học / Đang học / Hoàn thành**. Tiến độ hiện ở trang **Tổng quan**.
+- Biểu tượng ổ khóa đỏ nghĩa là còn môn tiên quyết chưa hoàn thành.
+- **Thêm môn** tạo note mới trong `Courses/`. Một note có sẵn cũng thành môn học nếu frontmatter có `type: course` (xem mục Quy ước dữ liệu).
+
+### 4. Viết ghi chú
+
+- Trang **Ghi chú**: chọn note ở cây thư mục bên trái. Chuyển chế độ **Soạn / Chia đôi / Xem** bằng nút trên thanh công cụ. App tự lưu sau 0,7 giây, hoặc nhấn **Ctrl+S**.
+- **Liên kết:** gõ `[[` để hiện gợi ý, dùng ↑↓ chọn rồi **Enter**. Gõ tên chưa có note cũng được, bấm vào link đó sẽ tạo note mới.
+- **Ảnh:** bấm nút **Chèn ảnh** trên thanh công cụ và chọn file. Ảnh được chép vào `attachments/`. Viết `![[ảnh.png|300]]` để đặt độ rộng 300px.
+- **Đổi tên / xóa:** menu **⋮** trên thanh công cụ. Đổi tên tự sửa mọi link trỏ tới note. Note bị xóa được chuyển vào `.trash/`, có thể khôi phục bằng cách chép lại.
+- Bảng bên phải: tab **Liên kết** (backlinks, liên kết đi, tags, flashcard trong note) và tab **Trợ lý AI**.
+
+### 5. Tìm và di chuyển nhanh
+
+- **Ctrl+O**: gõ vài chữ tên note (không cần dấu) rồi Enter để mở. Nếu chưa có note trùng tên, chọn dòng **Tạo note mới**.
+- **Ctrl+K**: tìm trong nội dung mọi note. Gõ `#tên-tag` để lọc theo tag.
+- **Ctrl+G**: Graph view. Cuộn chuột để zoom, kéo để di chuyển, di chuột lên một nút để làm nổi các note liên quan, bấm để mở.
+
+### 6. Ôn tập bằng flashcard
+
+1. Viết thẻ trong bất kỳ note nào, mỗi thẻ một dòng dạng `Câu hỏi::Trả lời`. Có thể dùng Trợ lý AI → **Tạo flashcard** để sinh thẻ từ note.
+2. Trang **Ôn tập**: chọn bộ thẻ (tất cả, hoặc theo môn) rồi bấm **Bắt đầu ôn**.
+3. Nhấn **Space** để xem đáp án, rồi chấm điểm bằng phím **1** Quên · **2** Khó · **3** Nhớ · **4** Dễ. Thẻ "Quên" sẽ hiện lại ngay trong phiên. App tự xếp lịch ôn lần sau.
+4. Phần **Thống kê** bên dưới cho biết chuỗi ngày ôn, tỉ lệ nhớ, heatmap và số thẻ đến hạn trong 7 ngày tới.
+5. **Xuất (Anki)** tạo file `.txt` để nhập vào Anki (File → Import). **Nhập bộ thẻ** đọc file TSV/CSV có ít nhất 2 cột (câu hỏi, trả lời) từ Anki, Quizlet hoặc Excel. Với Excel, hãy lưu dạng **CSV UTF-8** để giữ dấu tiếng Việt.
+
+### 7. Học cùng AI
+
+- **Trong một note:** tab **Trợ lý AI** ở bảng bên phải có **Tóm tắt**, **Tạo flashcard** (chọn thẻ muốn giữ rồi bấm **Thêm**) và ô chat hỏi về nội dung note.
+- **Trang Hỏi AI:** chọn **Phạm vi** là toàn bộ vault hoặc một môn.
+  - **Hỏi đáp:** đặt câu hỏi, Claude trả lời dựa trên ghi chú của bạn và dẫn nguồn `[[Tên note]]`, bấm vào để mở note đó. Nút **Cuộc trò chuyện mới** để bắt đầu lại.
+  - **Trắc nghiệm:** chọn 5/10/20 câu → **Tạo đề** → chọn đáp án → **Nộp bài** để xem điểm và giải thích. **Lưu đề vào vault** tạo note trong `Quizzes/`, mở được cả trong Obsidian.
+
 ## Tính năng
 
 - **Tổng quan**: số note, số liên kết, tiến độ từng kỳ, các môn đang học, note sửa gần đây, số thẻ đến hạn.
@@ -110,7 +203,7 @@ Nên khởi tạo TextEditingController ở đâu?::initState()
   2. `git tag v1.1.0`, rồi `git push origin v1.1.0`. Tag phải trùng với version, nếu không workflow sẽ dừng.
 - **Tự kiểm tra cập nhật**: mỗi lần mở, app hỏi GitHub có Release mới hơn không và hiện "Có bản x.y.z, tải về?". Có thể kiểm tra thủ công trong Cài đặt → Phiên bản. Chỉ hoạt động khi repo để Public.
 
-### Bản cài MSIX (tùy chọn)
+### Ký bản cài MSIX
 
 Bản cài `.msix` phải được ký. Dự án **không** dùng chứng chỉ thử nghiệm mặc định của package `msix`, vì mật khẩu của nó công khai: bảo người dùng tin cậy chứng chỉ đó là không an toàn. Thay vào đó bạn tạo chứng chỉ riêng một lần:
 
@@ -119,10 +212,4 @@ Bản cài `.msix` phải được ký. Dự án **không** dùng chứng chỉ 
 2. Trên GitHub: **Settings → Secrets and variables → Actions**, thêm hai secret:
    - `MSIX_CERT_BASE64`: nội dung script đã copy sẵn vào clipboard.
    - `MSIX_CERT_PASSWORD`: mật khẩu bạn đặt khi chạy script.
-3. Từ lần phát hành sau, Release có thêm `fptu-brain-vX.Y.Z.msix` và `fptu-brain.cer`.
-
-Người dùng cài bản MSIX:
-1. Tải `fptu-brain.cer`, mở file, chọn **Install Certificate → Local Machine → Place all certificates in the following store → Trusted People**. Chỉ cần làm một lần.
-2. Mở file `.msix` và bấm **Install**. Các bản sau cài đè để cập nhật, dữ liệu vault không bị ảnh hưởng.
-
-Không cần chứng chỉ thì cứ dùng bản `.zip`: giải nén rồi chạy `fptu_brain.exe`.
+3. Từ lần phát hành sau, Release có thêm `fptu-brain-vX.Y.Z.msix` và `fptu-brain.cer`. Với tag đã phát hành trước khi thêm secret, mở lần chạy **Release Windows** của tag đó trong tab Actions và chọn **Re-run all jobs**.
