@@ -10,6 +10,8 @@ import 'package:watcher/watcher.dart';
 import '../core/ai_assistant.dart';
 import '../core/claude_client.dart';
 import '../core/flashcards.dart';
+import '../core/rename.dart';
+import '../core/review_stats.dart';
 import '../core/vault_index.dart';
 import '../core/vault_repository.dart';
 
@@ -75,7 +77,7 @@ class VaultNotifier extends AsyncNotifier<VaultIndex?> {
     if (repo == null) return null;
     final sub = repo.watch().listen(_onFsEvent, onError: (_) {});
     ref.onDispose(sub.cancel);
-    return VaultIndex(repo.root, await repo.loadAll());
+    return repo.loadIndex();
   }
 
   Future<void> _onFsEvent(WatchEvent e) async {
@@ -83,6 +85,15 @@ class VaultNotifier extends AsyncNotifier<VaultIndex?> {
     final index = state.value;
     if (repo == null || index == null) return;
     final rel = repo.rel(e.path);
+    if (VaultRepository.isAttachmentPath(rel)) {
+      final known = index.attachments.containsKey(rel.toLowerCase());
+      if (e.type == ChangeType.REMOVE && known) {
+        state = AsyncData(index.withAttachments(index.attachments.values.where((a) => a != rel)));
+      } else if (e.type != ChangeType.REMOVE && !known) {
+        state = AsyncData(index.withAttachments([...index.attachments.values, rel]));
+      }
+      return;
+    }
     if (!VaultRepository.isNotePath(rel)) return;
     if (e.type == ChangeType.REMOVE) {
       if (index.notes.containsKey(rel)) state = AsyncData(index.without(rel));
@@ -120,6 +131,41 @@ class VaultNotifier extends AsyncNotifier<VaultIndex?> {
     if (index != null) state = AsyncData(index.without(path));
   }
 
+  /// Renames a note in place and rewrites every `[[link]]` pointing to it.
+  /// Returns the new path and how many notes had links updated.
+  Future<({String path, int linkedNotes})> rename(String oldPath, String newTitle) async {
+    final index = state.value!;
+    final title = newTitle.trim();
+    if (title.isEmpty || invalidNameChars.hasMatch(title)) {
+      throw const FormatException('Tên không hợp lệ (không dùng các ký tự \\ / : * ? " < > | # ^ [ ])');
+    }
+    final plan = planRename(index, oldPath, title);
+    if (plan.newPath == oldPath) return (path: oldPath, linkedNotes: 0);
+    final repo = _repo!;
+    await repo.renameFile(oldPath, plan.newPath);
+
+    final moved = index.notes[oldPath]!;
+    final notes = {
+      for (final n in index.notes.values)
+        if (n.path != oldPath) n.path: n,
+      plan.newPath: Note.parse(plan.newPath, moved.content, DateTime.now()),
+    };
+    for (final e in plan.updates.entries) {
+      notes[e.key] = await repo.writeNote(e.key, e.value);
+    }
+    state = AsyncData(VaultIndex(index.root, notes.values, attachments: index.attachments.values));
+    await ref.read(srsProvider.notifier).moveNote(oldPath, plan.newPath);
+    return (path: plan.newPath, linkedNotes: plan.linkedNotes);
+  }
+
+  /// Copies an image into the vault and returns the path to embed.
+  Future<String> importAttachment(String sourcePath) async {
+    final rel = await _repo!.importAttachment(sourcePath);
+    final index = state.value;
+    if (index != null) state = AsyncData(index.withAttachments([...index.attachments.values, rel]));
+    return rel;
+  }
+
   Future<void> appendToNote(String path, String text, {String? underHeading}) async {
     final note = state.value?.notes[path];
     if (note == null) return;
@@ -143,7 +189,7 @@ class ValueCell<T> extends Notifier<T> {
   void set(T value) => state = value;
 }
 
-enum AppPage { dashboard, courses, notes, search, graph, review, settings }
+enum AppPage { dashboard, courses, notes, search, graph, review, ask, settings }
 
 final pageProvider = NotifierProvider<ValueCell<AppPage>, AppPage>(() => ValueCell(AppPage.dashboard));
 final selectedNoteProvider = NotifierProvider<ValueCell<String?>, String?>(() => ValueCell(null));
@@ -174,13 +220,54 @@ class SrsNotifier extends AsyncNotifier<Map<String, CardState>> {
 
   Future<void> grade(Flashcard card, Grade g) async {
     final states = {...?state.value};
-    states[card.id] = schedule(states[card.id] ?? const CardState(), g, DateTime.now());
+    final before = states[card.id] ?? const CardState();
+    final now = DateTime.now();
+    states[card.id] = schedule(before, g, now);
     state = AsyncData(states);
     await ref.read(repoProvider)?.saveSrs(states);
+    await ref.read(reviewLogProvider.notifier).add(ReviewEntry(now, card.id, g, before.interval));
+  }
+
+  /// Card ids contain the note path; keep review history when a note is renamed.
+  Future<void> moveNote(String oldPath, String newPath) async {
+    final states = await future;
+    final prefix = '$oldPath|';
+    if (!states.keys.any((k) => k.startsWith(prefix))) return;
+    final moved = {
+      for (final e in states.entries)
+        (e.key.startsWith(prefix) ? '$newPath|${e.key.substring(prefix.length)}' : e.key): e.value,
+    };
+    state = AsyncData(moved);
+    await ref.read(repoProvider)?.saveSrs(moved);
   }
 }
 
 final srsProvider = AsyncNotifierProvider<SrsNotifier, Map<String, CardState>>(SrsNotifier.new);
+
+/// Every graded review, persisted to `.fptu/review_log.json` for statistics.
+class ReviewLogNotifier extends AsyncNotifier<List<ReviewEntry>> {
+  @override
+  Future<List<ReviewEntry>> build() async {
+    final repo = ref.watch(repoProvider);
+    return repo == null ? [] : repo.loadReviewLog();
+  }
+
+  Future<void> add(ReviewEntry e) async {
+    final log = [...await future, e];
+    state = AsyncData(log);
+    await ref.read(repoProvider)?.saveReviewLog(log);
+  }
+}
+
+final reviewLogProvider = AsyncNotifierProvider<ReviewLogNotifier, List<ReviewEntry>>(ReviewLogNotifier.new);
+
+final reviewStatsProvider = Provider<ReviewStats>(
+  (ref) => ReviewStats.compute(
+    ref.watch(flashcardsProvider),
+    ref.watch(srsProvider).value ?? const {},
+    ref.watch(reviewLogProvider).value ?? const [],
+  ),
+);
 
 final dueCardsProvider = Provider<List<Flashcard>>((ref) {
   final cards = ref.watch(flashcardsProvider);

@@ -1,4 +1,5 @@
 import 'claude_client.dart';
+import 'vault_ai.dart';
 import 'vault_index.dart';
 
 const _system = '''
@@ -85,4 +86,60 @@ class AiAssistant {
         '${noteContext(note, index)}',
     messages: history,
   );
+
+  static String _vaultSystem(VaultContext ctx) =>
+      '$_system\n\nDưới đây là các ghi chú trong phạm vi "${ctx.label}" của người dùng. '
+      'Trả lời dựa trên các ghi chú này và trích nguồn bằng [[Tên note]] sau mỗi ý. '
+      'Nếu ghi chú không có thông tin, hãy nói rõ trước khi bổ sung kiến thức chung.\n\n'
+      '<vault>\n${ctx.text}</vault>';
+
+  /// Q&A over a whole vault or course. The notes are a cached system prompt,
+  /// so follow-up questions only pay for the new turn.
+  Stream<String> askVault(VaultContext ctx, List<ChatMessage> history) =>
+      client.streamText(system: _vaultSystem(ctx), messages: history, cacheSystem: true);
+
+  /// Multiple-choice questions in the style of FPTU final exams (FE).
+  Future<List<QuizQuestion>> generateQuiz(VaultContext ctx, {int count = 10}) async {
+    final json = await client.completeJson(
+      system: _vaultSystem(ctx),
+      cacheSystem: true,
+      messages: [
+        (
+          role: 'user',
+          content:
+              'Tạo $count câu trắc nghiệm theo phong cách đề thi FE của FPTU dựa trên các ghi chú trên. '
+              'Mỗi câu có đúng 4 lựa chọn, chỉ 1 đáp án đúng; phương án sai phải hợp lý (nhầm lẫn thường gặp). '
+              'Trộn câu hỏi lý thuyết, đọc code/tình huống và so sánh khái niệm; phủ nhiều note khác nhau. '
+              'answer_index tính từ 0. explanation giải thích ngắn vì sao đúng và vì sao các phương án khác sai. '
+              'source là tên note (title) chứa kiến thức của câu.',
+        ),
+      ],
+      schema: {
+        'type': 'object',
+        'properties': {
+          'questions': {
+            'type': 'array',
+            'items': {
+              'type': 'object',
+              'properties': {
+                'question': {'type': 'string'},
+                'options': {
+                  'type': 'array',
+                  'items': {'type': 'string'},
+                },
+                'answer_index': {'type': 'integer'},
+                'explanation': {'type': 'string'},
+                'source': {'type': 'string'},
+              },
+              'required': ['question', 'options', 'answer_index', 'explanation', 'source'],
+              'additionalProperties': false,
+            },
+          },
+        },
+        'required': ['questions'],
+        'additionalProperties': false,
+      },
+    );
+    return QuizQuestion.listFromJson(json);
+  }
 }

@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/providers.dart';
+import 'ask_page.dart';
 import 'courses_page.dart';
 import 'dashboard_page.dart';
 import 'graph_page.dart';
 import 'notes_page.dart';
+import 'quick_switcher.dart';
 import 'review_page.dart';
 import 'search_page.dart';
 import 'settings_page.dart';
@@ -39,6 +41,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     (AppPage.search, Icons.search, Icons.search, 'Tìm kiếm'),
     (AppPage.graph, Icons.hub_outlined, Icons.hub, 'Graph'),
     (AppPage.review, Icons.style_outlined, Icons.style, 'Ôn tập'),
+    (AppPage.ask, Icons.forum_outlined, Icons.forum, 'Hỏi AI'),
     (AppPage.settings, Icons.settings_outlined, Icons.settings, 'Cài đặt'),
   ];
 
@@ -58,6 +61,7 @@ class _AppShellState extends ConsumerState<AppShell> {
             ref.read(pageProvider.notifier).set(AppPage.search),
         const SingleActivator(LogicalKeyboardKey.keyG, control: true): () =>
             ref.read(pageProvider.notifier).set(AppPage.graph),
+        const SingleActivator(LogicalKeyboardKey.keyO, control: true): () => showQuickSwitcher(context, ref),
       },
       child: Focus(
         autofocus: true,
@@ -101,6 +105,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                       SearchPage(),
                       GraphPage(),
                       ReviewPage(),
+                      AskPage(),
                       SettingsPage(),
                     ],
                   ),

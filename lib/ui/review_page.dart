@@ -1,11 +1,18 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
+import '../core/deck_io.dart';
 import '../core/flashcards.dart';
 import '../core/vault_index.dart';
 import '../state/providers.dart';
 import 'note_preview.dart';
+import 'review_stats_view.dart';
 import 'widgets.dart';
 
 /// Spaced-repetition review. Cards are `Q::A` lines from the vault's notes,
@@ -58,6 +65,58 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
     await ref.read(srsProvider.notifier).grade(card, g);
   }
 
+  void _snack(String msg, {SnackBarAction? action}) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), action: action));
+  }
+
+  /// Exports the selected deck as Anki-compatible TSV.
+  Future<void> _export(VaultIndex index) async {
+    final paths = _deckPaths(index);
+    final cards = ref.read(flashcardsProvider).where((c) => paths == null || paths.contains(c.notePath)).toList();
+    final name = _deck == null ? 'tat-ca' : index.notes[_deck]!.courseCode;
+    final uri = await FilePicker.saveFile(
+      dialogTitle: 'Xuất bộ thẻ',
+      fileName: 'fptu-flashcards-$name.txt',
+      bytes: Uint8List.fromList(utf8.encode(exportDeckTsv(cards))),
+      mimeType: 'text/plain',
+    );
+    if (uri != null) _snack('Đã xuất ${cards.length} thẻ. Trong Anki: File → Import rồi chọn file này.');
+  }
+
+  /// Imports TSV/CSV (Anki, Quizlet, Excel) into a new deck note in `Flashcards/`.
+  Future<void> _import() async {
+    final file = await FilePicker.pickFile(
+      dialogTitle: 'Chọn file bộ thẻ (.txt / .tsv / .csv)',
+      type: FileType.custom,
+      allowedExtensions: const ['txt', 'tsv', 'csv'],
+    );
+    final path = file?.path;
+    if (path == null) return;
+    final String text;
+    try {
+      text = await File(path).readAsString();
+    } on FileSystemException catch (e) {
+      _snack('Không đọc được file: ${e.message}');
+      return;
+    } on FormatException {
+      _snack('File không phải văn bản UTF-8. Hãy lưu lại dưới dạng "CSV UTF-8" rồi thử lại.');
+      return;
+    }
+    final cards = parseDeck(text);
+    if (cards.isEmpty) {
+      _snack('Không tìm thấy thẻ nào. Mỗi dòng cần có ít nhất 2 cột: câu hỏi và trả lời.');
+      return;
+    }
+    final title = p.basenameWithoutExtension(path);
+    final note = await ref
+        .read(vaultProvider.notifier)
+        .create('Flashcards', title, content: deckNote(title, cards, source: p.basename(path)));
+    _snack(
+      'Đã nhập ${cards.length} thẻ vào ${note.path}',
+      action: SnackBarAction(label: 'Mở', onPressed: () => openNote(ref, note.path)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final index = ref.watch(vaultProvider).value;
@@ -96,6 +155,19 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
         PageHeader(
           title: 'Ôn tập flashcard',
           subtitle: 'Viết "Câu hỏi::Trả lời" trong bất kỳ note nào. Lịch ôn theo thuật toán SM-2, lưu ở .fptu/srs.json trong vault.',
+          actions: [
+            OutlinedButton.icon(
+              onPressed: _import,
+              icon: const Icon(Icons.file_upload_outlined),
+              label: const Text('Nhập bộ thẻ'),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: all.isEmpty ? null : () => _export(index),
+              icon: const Icon(Icons.file_download_outlined),
+              label: const Text('Xuất (Anki)'),
+            ),
+          ],
         ),
         if (queue != null)
           Padding(
@@ -152,6 +224,8 @@ class _ReviewPageState extends ConsumerState<ReviewPage> {
                   label: Text(dueHere == 0 ? 'Không có thẻ đến hạn' : 'Bắt đầu ôn $dueHere thẻ'),
                 ),
         ),
+        const SizedBox(height: 32),
+        const ReviewStatsView(),
       ],
     );
   }

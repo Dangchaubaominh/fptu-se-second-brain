@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../core/flashcards.dart';
 import '../core/vault_index.dart';
@@ -10,6 +12,7 @@ import '../state/providers.dart';
 import 'ai_panel.dart';
 import 'markdown_editor.dart';
 import 'note_preview.dart';
+import 'quick_switcher.dart';
 import 'widgets.dart';
 
 enum _Mode { edit, split, preview }
@@ -82,6 +85,54 @@ class _NotesPageState extends ConsumerState<NotesPage> {
     ref.read(selectedNoteProvider.notifier).set(note.path);
   }
 
+  Future<void> _rename() async {
+    final path = _path;
+    final note = path == null ? null : ref.read(vaultProvider).value?.notes[path];
+    if (note == null) return;
+    final title = await _askText(context, 'Đổi tên ghi chú', 'Tên mới', initial: note.title, action: 'Đổi tên');
+    if (title == null || title.isEmpty || title == note.title) return;
+    // Flush pending edits to the old path before the file moves.
+    await _save();
+    try {
+      final r = await ref.read(vaultProvider.notifier).rename(path!, title);
+      ref.read(selectedNoteProvider.notifier).set(r.path);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              r.linkedNotes == 0
+                  ? 'Đã đổi tên thành "$title"'
+                  : 'Đã đổi tên và cập nhật liên kết trong ${r.linkedNotes} ghi chú',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Không đổi tên được: $e')));
+    }
+  }
+
+  Future<void> _insertImage() async {
+    final file = await FilePicker.pickFile(dialogTitle: 'Chọn ảnh để chèn', type: FileType.image);
+    final source = file?.path;
+    if (source == null) return;
+    final notifier = ref.read(vaultProvider.notifier);
+    final rel = await notifier.importAttachment(source);
+    final index = ref.read(vaultProvider).value!;
+    final name = p.posix.basename(rel);
+    final target = index.resolveAttachment(name) == rel ? name : rel;
+    final embed = '![[$target]]';
+    final sel = _ctrl.selection;
+    final text = _ctrl.text;
+    final at = sel.isValid ? sel.start : text.length;
+    final end = sel.isValid ? sel.end : text.length;
+    _ctrl.value = TextEditingValue(
+      text: text.replaceRange(at, end, embed),
+      selection: TextSelection.collapsed(offset: at + embed.length),
+    );
+    _onChanged(_ctrl.text);
+  }
+
   Future<void> _trash() async {
     final path = _path;
     if (path == null) return;
@@ -124,11 +175,13 @@ class _NotesPageState extends ConsumerState<NotesPage> {
     final index = ref.watch(vaultProvider).value;
     if (index == null) return const SizedBox();
     final note = _path == null ? null : index.notes[_path];
+    // Narrow windows: slimmer file tree and side panel so the editor keeps enough room.
+    final compact = MediaQuery.sizeOf(context).width < 1300;
 
     return Row(
       children: [
         SizedBox(
-          width: 260,
+          width: compact ? 220 : 260,
           child: _FileTree(index: index, selected: _path, onNew: _newNote),
         ),
         const VerticalDivider(),
@@ -156,6 +209,8 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                         onMode: (m) => setState(() => _mode = m),
                         onToggleSide: () => setState(() => _showSide = !_showSide),
                         onTrash: _trash,
+                        onRename: _rename,
+                        onInsertImage: _insertImage,
                       ),
                       const Divider(),
                       Expanded(child: _buildEditorArea(index)),
@@ -166,7 +221,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
         if (note != null && _showSide) ...[
           const VerticalDivider(),
           SizedBox(
-            width: 360,
+            width: compact ? 300 : 360,
             child: _SidePanel(note: note, index: index, onBeforeAiWrite: _save),
           ),
         ],
@@ -178,7 +233,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
     final editor = MarkdownEditor(controller: _ctrl, onChanged: _onChanged, index: index, currentPath: _path);
     final preview = ValueListenableBuilder(
       valueListenable: _ctrl,
-      builder: (_, v, _) => NotePreview(content: v.text),
+      builder: (_, v, _) => NotePreview(content: v.text, notePath: _path),
     );
     return switch (_mode) {
       _Mode.edit => editor,
@@ -194,8 +249,15 @@ class _NotesPageState extends ConsumerState<NotesPage> {
   }
 }
 
-Future<String?> _askText(BuildContext context, String title, String label) {
-  final c = TextEditingController();
+Future<String?> _askText(
+  BuildContext context,
+  String title,
+  String label, {
+  String initial = '',
+  String action = 'Tạo',
+}) {
+  final c = TextEditingController(text: initial)
+    ..selection = TextSelection(baseOffset: 0, extentOffset: initial.length);
   return showDialog<String>(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -211,7 +273,7 @@ Future<String?> _askText(BuildContext context, String title, String label) {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, c.text.trim()), child: const Text('Tạo')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, c.text.trim()), child: Text(action)),
       ],
     ),
   );
@@ -226,6 +288,8 @@ class _EditorToolbar extends StatelessWidget {
     required this.onMode,
     required this.onToggleSide,
     required this.onTrash,
+    required this.onRename,
+    required this.onInsertImage,
   });
   final Note note;
   final _Mode mode;
@@ -234,6 +298,8 @@ class _EditorToolbar extends StatelessWidget {
   final ValueChanged<_Mode> onMode;
   final VoidCallback onToggleSide;
   final VoidCallback onTrash;
+  final VoidCallback onRename;
+  final VoidCallback onInsertImage;
 
   @override
   Widget build(BuildContext context) {
@@ -269,7 +335,25 @@ class _EditorToolbar extends StatelessWidget {
             onSelectionChanged: (s) => onMode(s.first),
           ),
           const SizedBox(width: 8),
-          IconButton(tooltip: 'Chuyển vào thùng rác', onPressed: onTrash, icon: const Icon(Icons.delete_outline)),
+          IconButton(
+            tooltip: 'Chèn ảnh',
+            onPressed: onInsertImage,
+            icon: const Icon(Icons.add_photo_alternate_outlined),
+          ),
+          PopupMenuButton<VoidCallback>(
+            tooltip: 'Thêm',
+            onSelected: (action) => action(),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: onRename,
+                child: const ListTile(leading: Icon(Icons.drive_file_rename_outline), title: Text('Đổi tên')),
+              ),
+              PopupMenuItem(
+                value: onTrash,
+                child: const ListTile(leading: Icon(Icons.delete_outline), title: Text('Chuyển vào thùng rác')),
+              ),
+            ],
+          ),
           IconButton(
             tooltip: showSide ? 'Ẩn bảng bên' : 'Hiện liên kết & AI',
             onPressed: onToggleSide,
@@ -327,6 +411,11 @@ class _FileTreeState extends ConsumerState<_FileTree> {
                   ),
                   onChanged: (v) => setState(() => _filter = v),
                 ),
+              ),
+              IconButton(
+                tooltip: 'Mở nhanh (Ctrl+O)',
+                onPressed: () => showQuickSwitcher(context, ref),
+                icon: const Icon(Icons.manage_search),
               ),
               IconButton(tooltip: 'Ghi chú mới', onPressed: widget.onNew, icon: const Icon(Icons.note_add_outlined)),
             ],

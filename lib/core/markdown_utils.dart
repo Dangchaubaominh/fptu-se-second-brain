@@ -112,15 +112,24 @@ const _calloutIcons = {
   'quote': '💬',
 };
 
+/// True for embeds of image files, which are attachments rather than note links.
+bool isImageTarget(String target) =>
+    RegExp(r'\.(png|jpe?g|gif|webp|bmp)$', caseSensitive: false).hasMatch(target.trim());
+
 /// Converts Obsidian-only syntax into plain Markdown for the preview:
-/// `[[x|y]]` -> `[y](wikilink:x)`, callouts -> bold blockquote title.
-/// Code blocks are left untouched.
+/// `[[x|y]]` -> `[y](wikilink:x)`, `![[img.png]]` -> `![](vaultimg:img.png)`,
+/// callouts -> bold blockquote title. Code blocks are left untouched.
 String obsidianToMarkdown(String body) {
   final parts = body.split('```');
   for (var i = 0; i < parts.length; i += 2) {
     parts[i] = parts[i]
         .replaceAllMapped(_wikiRe, (m) {
           final l = _toLink(m);
+          if (l.embed && isImageTarget(l.target)) {
+            // `![[img.png|300]]` -> image; a numeric alias is the display width.
+            final width = RegExp(r'^\d+').stringMatch(l.alias ?? '') ?? '';
+            return '![$width](vaultimg:${Uri.encodeComponent(l.target)})';
+          }
           final href = Uri.encodeComponent(l.heading == null ? l.target : '${l.target}#${l.heading}');
           return '[${l.label}](wikilink:$href)';
         })

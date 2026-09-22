@@ -29,11 +29,20 @@ class ClaudeClient {
     'anthropic-beta': 'server-side-fallback-2026-07-01',
   };
 
-  Map<String, dynamic> _body(String system, List<ChatMessage> messages, int maxTokens) => {
+  Map<String, dynamic> _body(String system, List<ChatMessage> messages, int maxTokens, bool cacheSystem) => {
     'model': model,
     'max_tokens': maxTokens,
     'fallbacks': 'default',
-    'system': system,
+    // A cached system prompt (e.g. the whole vault) makes follow-up questions cheap and fast.
+    'system': cacheSystem
+        ? [
+            {
+              'type': 'text',
+              'text': system,
+              'cache_control': {'type': 'ephemeral'},
+            },
+          ]
+        : system,
     'messages': [
       for (final m in messages) {'role': m.role, 'content': m.content},
     ],
@@ -45,10 +54,11 @@ class ClaudeClient {
     required String system,
     required List<ChatMessage> messages,
     int maxTokens = 64000,
+    bool cacheSystem = false,
   }) async* {
     final req = http.Request('POST', _endpoint)
       ..headers.addAll(_headers)
-      ..body = jsonEncode({..._body(system, messages, maxTokens), 'stream': true});
+      ..body = jsonEncode({..._body(system, messages, maxTokens, cacheSystem), 'stream': true});
     final res = await _http.send(req);
     if (res.statusCode != 200) {
       throw AiException(_describeError(res.statusCode, await res.stream.bytesToString()));
@@ -76,12 +86,13 @@ class ClaudeClient {
     required List<ChatMessage> messages,
     required Map<String, dynamic> schema,
     int maxTokens = 16000,
+    bool cacheSystem = false,
   }) async {
     final res = await _http.post(
       _endpoint,
       headers: _headers,
       body: jsonEncode({
-        ..._body(system, messages, maxTokens),
+        ..._body(system, messages, maxTokens, cacheSystem),
         'output_config': {
           'format': {'type': 'json_schema', 'schema': schema},
         },

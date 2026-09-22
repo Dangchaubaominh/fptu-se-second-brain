@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:watcher/watcher.dart';
 
 import 'flashcards.dart';
+import 'review_stats.dart';
 import 'vault_index.dart';
 
 /// All file-system access to an Obsidian vault lives here.
@@ -22,18 +23,53 @@ class VaultRepository {
   static bool isNotePath(String relPath) =>
       relPath.toLowerCase().endsWith('.md') && !relPath.split('/').any((s) => s.startsWith('.'));
 
-  Future<List<Note>> loadAll() async {
+  static const imageExtensions = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'};
+
+  static bool isAttachmentPath(String relPath) =>
+      imageExtensions.contains(p.extension(relPath).toLowerCase()) && !relPath.split('/').any((s) => s.startsWith('.'));
+
+  /// Scans the vault once for notes and embeddable images.
+  Future<VaultIndex> loadIndex() async {
     final dir = Directory(root);
     if (!await dir.exists()) throw FileSystemException('Không tìm thấy thư mục vault', root);
     final notes = <Note>[];
+    final attachments = <String>[];
     await for (final e in dir.list(recursive: true, followLinks: false)) {
       if (e is! File) continue;
       final r = rel(e.path);
-      if (!isNotePath(r)) continue;
-      final n = await readNote(r);
-      if (n != null) notes.add(n);
+      if (isAttachmentPath(r)) {
+        attachments.add(r);
+      } else if (isNotePath(r)) {
+        final n = await readNote(r);
+        if (n != null) notes.add(n);
+      }
     }
-    return notes;
+    return VaultIndex(root, notes, attachments: attachments);
+  }
+
+  Future<List<Note>> loadAll() async => (await loadIndex()).notes.values.toList();
+
+  /// Renames/moves a file inside the vault. Fails if the target exists.
+  Future<void> renameFile(String fromRel, String toRel) async {
+    final dest = File(abs(toRel));
+    if (await dest.exists()) throw FileSystemException('Đã có file trùng tên', toRel);
+    await dest.parent.create(recursive: true);
+    await File(abs(fromRel)).rename(dest.path);
+  }
+
+  /// Copies an image from anywhere on disk into `attachments/` (unique name)
+  /// and returns its vault-relative path.
+  Future<String> importAttachment(String sourcePath, {String folder = 'attachments'}) async {
+    final base = p.basenameWithoutExtension(sourcePath).replaceAll(RegExp(r'[\\/:*?"<>|#^\[\]]'), '-');
+    final ext = p.extension(sourcePath).toLowerCase();
+    var name = '$base$ext';
+    for (var i = 1; await File(abs('$folder/$name')).exists(); i++) {
+      name = '$base $i$ext';
+    }
+    final dest = File(abs('$folder/$name'));
+    await dest.parent.create(recursive: true);
+    await File(sourcePath).copy(dest.path);
+    return '$folder/$name';
   }
 
   Future<Note?> readNote(String relPath) async {
@@ -91,6 +127,30 @@ class VaultRepository {
     } on FormatException {
       return {};
     }
+  }
+
+  File get _logFile => File(p.join(root, appDir, 'review_log.json'));
+
+  Future<List<ReviewEntry>> loadReviewLog() async {
+    try {
+      final j = jsonDecode(await _logFile.readAsString()) as Map<String, dynamic>;
+      return (j['reviews'] as List? ?? const []).map(ReviewEntry.fromJson).whereType<ReviewEntry>().toList();
+    } on FileSystemException {
+      return [];
+    } on FormatException {
+      return [];
+    }
+  }
+
+  Future<void> saveReviewLog(List<ReviewEntry> log) async {
+    await _logFile.parent.create(recursive: true);
+    await _logFile.writeAsString(
+      jsonEncode({
+        'version': 1,
+        'reviews': [for (final e in log) e.toJson()],
+      }),
+      flush: true,
+    );
   }
 
   Future<void> saveSrs(Map<String, CardState> states) async {

@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/markdown_utils.dart';
@@ -16,9 +19,12 @@ Future<void> followWikilink(WidgetRef ref, String target) async {
 }
 
 class NotePreview extends ConsumerWidget {
-  const NotePreview({super.key, required this.content, this.padding = const EdgeInsets.all(24)});
+  const NotePreview({super.key, required this.content, this.padding = const EdgeInsets.all(24), this.notePath});
   final String content;
   final EdgeInsets padding;
+
+  /// Used to resolve relative image paths like `![](img/a.png)`.
+  final String? notePath;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -35,6 +41,7 @@ class NotePreview extends ConsumerWidget {
           MarkdownBody(
             data: obsidianToMarkdown(fm.body),
             selectable: true,
+            imageBuilder: (uri, title, alt) => _VaultImage(uri: uri, alt: alt, notePath: notePath),
             onTapLink: (text, href, title) {
               if (href == null) return;
               if (href.startsWith('wikilink:')) {
@@ -66,6 +73,47 @@ class NotePreview extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Renders `![[img.png]]` and `![](path)` from the vault, or remote http(s) images.
+class _VaultImage extends ConsumerWidget {
+  const _VaultImage({required this.uri, this.alt, this.notePath});
+  final Uri uri;
+  final String? alt;
+  final String? notePath;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final width = double.tryParse(alt ?? '');
+    if (uri.scheme == 'http' || uri.scheme == 'https') {
+      return Image.network(uri.toString(), width: width, errorBuilder: (_, _, _) => _missing(context, uri.toString()));
+    }
+    final index = ref.watch(vaultProvider).value;
+    final target = Uri.decodeComponent(uri.scheme == 'vaultimg' ? uri.path : uri.toString());
+    final folder = notePath == null ? '' : p.posix.dirname(notePath!).replaceFirst(RegExp(r'^\.$'), '');
+    final rel = index?.resolveAttachment(target, fromFolder: folder);
+    if (index == null || rel == null) return _missing(context, target);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: Image.file(
+          File(p.joinAll([index.root, ...rel.split('/')])),
+          width: width,
+          errorBuilder: (_, _, _) => _missing(context, target),
+        ),
+      ),
+    );
+  }
+
+  Widget _missing(BuildContext context, String name) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(color: scheme.errorContainer, borderRadius: BorderRadius.circular(6)),
+      child: Text('🖼 Không tìm thấy ảnh: $name', style: TextStyle(color: scheme.onErrorContainer)),
     );
   }
 }

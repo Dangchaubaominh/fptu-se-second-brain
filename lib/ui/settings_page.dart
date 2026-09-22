@@ -193,7 +193,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         ]),
         section('Phím tắt', const [
           Text(
-            'Ctrl+K  Tìm kiếm\nCtrl+G  Graph view\nCtrl+S  Lưu note (app cũng tự lưu sau 0,7 giây)\n'
+            'Ctrl+O  Mở nhanh note (quick switcher)\nCtrl+K  Tìm kiếm\nCtrl+G  Graph view\nCtrl+S  Lưu note (app cũng tự lưu sau 0,7 giây)\n'
             'Ôn tập: Space lật thẻ · 1–4 chấm điểm · Esc dừng',
           ),
         ]),

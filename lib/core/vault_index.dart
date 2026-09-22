@@ -31,7 +31,7 @@ class Note {
       content: content,
       frontmatter: fm.data,
       body: fm.body,
-      links: parseWikiLinks(fm.body),
+      links: parseWikiLinks(fm.body).where((l) => !isImageTarget(l.target)).toList(),
       tags: {
         ...asStringList(fm.data['tags']).map((t) => t.replaceFirst('#', '').toLowerCase()),
         ...parseInlineTags(fm.body),
@@ -75,7 +75,12 @@ class SearchHit {
 
 /// Immutable in-memory index of a vault: notes, link resolution, backlinks.
 class VaultIndex {
-  VaultIndex(this.root, Iterable<Note> notes) : notes = {for (final n in notes) n.path: n} {
+  VaultIndex(this.root, Iterable<Note> notes, {Iterable<String> attachments = const []})
+    : notes = {for (final n in notes) n.path: n},
+      attachments = {for (final a in attachments) a.toLowerCase(): a} {
+    for (final a in this.attachments.values) {
+      _attachByName.putIfAbsent(p.posix.basename(a).toLowerCase(), () => a);
+    }
     for (final n in this.notes.values) {
       _byName.putIfAbsent(n.title.toLowerCase(), () => n.path);
       _byName.putIfAbsent(p.posix.withoutExtension(n.path).toLowerCase(), () => n.path);
@@ -97,6 +102,10 @@ class VaultIndex {
   final String root;
   final Map<String, Note> notes;
   final Map<String, String> _byName = {};
+
+  /// Non-note files Obsidian can embed (images), keyed by lower-cased path.
+  final Map<String, String> attachments;
+  final Map<String, String> _attachByName = {};
   final Map<String, Set<String>> backlinks = {};
   final Map<String, Set<String>> outgoing = {};
 
@@ -109,8 +118,22 @@ class VaultIndex {
     return _byName[t];
   }
 
-  VaultIndex withNote(Note note) => VaultIndex(root, {...notes, note.path: note}.values);
-  VaultIndex without(String path) => VaultIndex(root, notes.values.where((n) => n.path != path));
+  /// Resolves an embed like `![[diagram.png]]` or `![](img/a.png)`: exact vault
+  /// path, then relative to [fromFolder], then by file name anywhere (Obsidian's default).
+  String? resolveAttachment(String target, {String fromFolder = ''}) {
+    final t = p.posix.normalize(target.trim().replaceAll(r'\', '/')).toLowerCase();
+    if (fromFolder.isNotEmpty) {
+      final rel = attachments[p.posix.normalize(p.posix.join(fromFolder.toLowerCase(), t))];
+      if (rel != null) return rel;
+    }
+    return attachments[t] ?? _attachByName[p.posix.basename(t)];
+  }
+
+  VaultIndex withNote(Note note) =>
+      VaultIndex(root, {...notes, note.path: note}.values, attachments: attachments.values);
+  VaultIndex without(String path) =>
+      VaultIndex(root, notes.values.where((n) => n.path != path), attachments: attachments.values);
+  VaultIndex withAttachments(Iterable<String> paths) => VaultIndex(root, notes.values, attachments: paths);
 
   List<Note> get courses => notes.values.where((n) => n.isCourse).toList()
     ..sort(

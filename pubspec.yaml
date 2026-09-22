@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
   sdk: ^3.13.2
@@ -55,6 +55,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  msix: ^3.18.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -97,3 +98,15 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Windows installer: `dart run msix:create`. Release builds are signed in CI with
+# your own certificate (see tool/create_msix_certificate.ps1 and README).
+msix_config:
+  display_name: FPTU SE Second Brain
+  publisher_display_name: FPTU SE Second Brain
+  identity_name: com.fptu.fptubrain
+  publisher: CN=FPTU SE Second Brain
+  capabilities: internetClient
+  languages: vi-vn, en-us
+  output_name: fptu-brain
+  install_certificate: false
