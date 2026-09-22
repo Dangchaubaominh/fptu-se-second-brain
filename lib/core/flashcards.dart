@@ -22,8 +22,7 @@ List<Flashcard> parseFlashcards(Note note) => _cardRe
     .where((c) => c.question.isNotEmpty && c.answer.isNotEmpty)
     .toList();
 
-List<Flashcard> allFlashcards(VaultIndex index) =>
-    [for (final n in index.notes.values) ...parseFlashcards(n)];
+List<Flashcard> allFlashcards(VaultIndex index) => [for (final n in index.notes.values) ...parseFlashcards(n)];
 
 /// Formats a card for writing back into a note (must stay on one line).
 String formatFlashcard(String question, String answer) {
@@ -48,18 +47,18 @@ class CardState {
   bool isDue(DateTime now) => due == null || !due!.isAfter(now);
 
   Map<String, dynamic> toJson() => {
-        'ease': double.parse(ease.toStringAsFixed(2)),
-        'interval': interval,
-        'reps': reps,
-        if (due != null) 'due': due!.toIso8601String(),
-      };
+    'ease': double.parse(ease.toStringAsFixed(2)),
+    'interval': interval,
+    'reps': reps,
+    if (due != null) 'due': due!.toIso8601String(),
+  };
 
   factory CardState.fromJson(Map<String, dynamic> j) => CardState(
-        ease: (j['ease'] as num?)?.toDouble() ?? 2.5,
-        interval: (j['interval'] as num?)?.toInt() ?? 0,
-        reps: (j['reps'] as num?)?.toInt() ?? 0,
-        due: j['due'] == null ? null : DateTime.tryParse(j['due'] as String),
-      );
+    ease: (j['ease'] as num?)?.toDouble() ?? 2.5,
+    interval: (j['interval'] as num?)?.toInt() ?? 0,
+    reps: (j['reps'] as num?)?.toInt() ?? 0,
+    due: j['due'] == null ? null : DateTime.tryParse(j['due'] as String),
+  );
 }
 
 /// SM-2 style scheduling.
@@ -78,10 +77,18 @@ CardState schedule(CardState s, Grade g, DateTime now) {
       ease -= 0.15;
     case Grade.good:
       reps += 1;
-      interval = switch (reps) { 1 => 1, 2 => 3, _ => (max(s.interval, 1) * ease).round() };
+      interval = switch (reps) {
+        1 => 1,
+        2 => 3,
+        _ => (max(s.interval, 1) * ease).round(),
+      };
     case Grade.easy:
       reps += 1;
-      interval = switch (reps) { 1 => 3, 2 => 6, _ => (max(s.interval, 1) * ease * 1.3).round() };
+      interval = switch (reps) {
+        1 => 3,
+        2 => 6,
+        _ => (max(s.interval, 1) * ease * 1.3).round(),
+      };
       ease += 0.15;
   }
   ease = ease.clamp(1.3, 3.0);

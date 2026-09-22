@@ -125,39 +125,53 @@ class _NotesPageState extends ConsumerState<NotesPage> {
     if (index == null) return const SizedBox();
     final note = _path == null ? null : index.notes[_path];
 
-    return Row(children: [
-      SizedBox(width: 260, child: _FileTree(index: index, selected: _path, onNew: _newNote)),
-      const VerticalDivider(),
-      Expanded(
-        child: note == null
-            ? EmptyState(
-                icon: Icons.description_outlined,
-                title: 'Chọn một ghi chú để bắt đầu',
-                message: 'Hoặc tạo ghi chú mới. Mọi thay đổi được lưu tự động vào file .md.',
-                action: FilledButton.icon(onPressed: _newNote, icon: const Icon(Icons.add), label: const Text('Ghi chú mới')),
-              )
-            : CallbackShortcuts(
-                bindings: {const SingleActivator(LogicalKeyboardKey.keyS, control: true): _save},
-                child: Column(children: [
-                  _EditorToolbar(
-                    note: note,
-                    mode: _mode,
-                    status: _saving ? 'Đang lưu…' : (_dirty ? 'Chưa lưu' : 'Đã lưu'),
-                    showSide: _showSide,
-                    onMode: (m) => setState(() => _mode = m),
-                    onToggleSide: () => setState(() => _showSide = !_showSide),
-                    onTrash: _trash,
-                  ),
-                  const Divider(),
-                  Expanded(child: _buildEditorArea(index)),
-                ]),
-              ),
-      ),
-      if (note != null && _showSide) ...[
+    return Row(
+      children: [
+        SizedBox(
+          width: 260,
+          child: _FileTree(index: index, selected: _path, onNew: _newNote),
+        ),
         const VerticalDivider(),
-        SizedBox(width: 360, child: _SidePanel(note: note, index: index, onBeforeAiWrite: _save)),
+        Expanded(
+          child: note == null
+              ? EmptyState(
+                  icon: Icons.description_outlined,
+                  title: 'Chọn một ghi chú để bắt đầu',
+                  message: 'Hoặc tạo ghi chú mới. Mọi thay đổi được lưu tự động vào file .md.',
+                  action: FilledButton.icon(
+                    onPressed: _newNote,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Ghi chú mới'),
+                  ),
+                )
+              : CallbackShortcuts(
+                  bindings: {const SingleActivator(LogicalKeyboardKey.keyS, control: true): _save},
+                  child: Column(
+                    children: [
+                      _EditorToolbar(
+                        note: note,
+                        mode: _mode,
+                        status: _saving ? 'Đang lưu…' : (_dirty ? 'Chưa lưu' : 'Đã lưu'),
+                        showSide: _showSide,
+                        onMode: (m) => setState(() => _mode = m),
+                        onToggleSide: () => setState(() => _showSide = !_showSide),
+                        onTrash: _trash,
+                      ),
+                      const Divider(),
+                      Expanded(child: _buildEditorArea(index)),
+                    ],
+                  ),
+                ),
+        ),
+        if (note != null && _showSide) ...[
+          const VerticalDivider(),
+          SizedBox(
+            width: 360,
+            child: _SidePanel(note: note, index: index, onBeforeAiWrite: _save),
+          ),
+        ],
       ],
-    ]);
+    );
   }
 
   Widget _buildEditorArea(VaultIndex index) {
@@ -169,11 +183,13 @@ class _NotesPageState extends ConsumerState<NotesPage> {
     return switch (_mode) {
       _Mode.edit => editor,
       _Mode.preview => preview,
-      _Mode.split => Row(children: [
+      _Mode.split => Row(
+        children: [
           Expanded(child: editor),
           const VerticalDivider(),
           Expanded(child: preview),
-        ]),
+        ],
+      ),
     };
   }
 }
@@ -224,31 +240,43 @@ class _EditorToolbar extends StatelessWidget {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 10, 12, 10),
-      child: Row(children: [
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(note.title, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700), overflow: TextOverflow.ellipsis),
-            Text('${note.path} · $status', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-          ]),
-        ),
-        SegmentedButton<_Mode>(
-          showSelectedIcon: false,
-          segments: const [
-            ButtonSegment(value: _Mode.edit, icon: Icon(Icons.edit_note), tooltip: 'Soạn thảo'),
-            ButtonSegment(value: _Mode.split, icon: Icon(Icons.vertical_split), tooltip: 'Chia đôi'),
-            ButtonSegment(value: _Mode.preview, icon: Icon(Icons.visibility_outlined), tooltip: 'Xem'),
-          ],
-          selected: {mode},
-          onSelectionChanged: (s) => onMode(s.first),
-        ),
-        const SizedBox(width: 8),
-        IconButton(tooltip: 'Chuyển vào thùng rác', onPressed: onTrash, icon: const Icon(Icons.delete_outline)),
-        IconButton(
-          tooltip: showSide ? 'Ẩn bảng bên' : 'Hiện liên kết & AI',
-          onPressed: onToggleSide,
-          icon: Icon(showSide ? Icons.view_sidebar : Icons.view_sidebar_outlined),
-        ),
-      ]),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  note.title,
+                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  '${note.path} · $status',
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+          SegmentedButton<_Mode>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: _Mode.edit, icon: Icon(Icons.edit_note), tooltip: 'Soạn thảo'),
+              ButtonSegment(value: _Mode.split, icon: Icon(Icons.vertical_split), tooltip: 'Chia đôi'),
+              ButtonSegment(value: _Mode.preview, icon: Icon(Icons.visibility_outlined), tooltip: 'Xem'),
+            ],
+            selected: {mode},
+            onSelectionChanged: (s) => onMode(s.first),
+          ),
+          const SizedBox(width: 8),
+          IconButton(tooltip: 'Chuyển vào thùng rác', onPressed: onTrash, icon: const Icon(Icons.delete_outline)),
+          IconButton(
+            tooltip: showSide ? 'Ẩn bảng bên' : 'Hiện liên kết & AI',
+            onPressed: onToggleSide,
+            icon: Icon(showSide ? Icons.view_sidebar : Icons.view_sidebar_outlined),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -285,21 +313,30 @@ class _FileTreeState extends ConsumerState<_FileTree> {
       }
       d.notes.add(n);
     }
-    return Column(children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 4, 8),
-        child: Row(children: [
-          Expanded(
-            child: TextField(
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.filter_list, size: 18), hintText: 'Lọc file…'),
-              onChanged: (v) => setState(() => _filter = v),
-            ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 4, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.filter_list, size: 18),
+                    hintText: 'Lọc file…',
+                  ),
+                  onChanged: (v) => setState(() => _filter = v),
+                ),
+              ),
+              IconButton(tooltip: 'Ghi chú mới', onPressed: widget.onNew, icon: const Icon(Icons.note_add_outlined)),
+            ],
           ),
-          IconButton(tooltip: 'Ghi chú mới', onPressed: widget.onNew, icon: const Icon(Icons.note_add_outlined)),
-        ]),
-      ),
-      Expanded(child: ListView(children: _buildDir(root, 0, expandAll: f.isNotEmpty))),
-    ]);
+        ),
+        Expanded(
+          child: ListView(children: _buildDir(root, 0, expandAll: f.isNotEmpty)),
+        ),
+      ],
+    );
   }
 
   List<Widget> _buildDir(_Dir d, int depth, {required bool expandAll}) {
@@ -343,20 +380,26 @@ class _SidePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
-        length: 2,
-        child: Column(children: [
-          const TabBar(tabs: [
+    length: 2,
+    child: Column(
+      children: [
+        const TabBar(
+          tabs: [
             Tab(icon: Icon(Icons.link, size: 18), text: 'Liên kết', height: 52),
             Tab(icon: Icon(Icons.auto_awesome, size: 18), text: 'Trợ lý AI', height: 52),
-          ]),
-          Expanded(
-            child: TabBarView(children: [
+          ],
+        ),
+        Expanded(
+          child: TabBarView(
+            children: [
               _LinksPanel(note: note, index: index),
               AiPanel(key: ValueKey(note.path), notePath: note.path, onBeforeWrite: onBeforeAiWrite),
-            ]),
+            ],
           ),
-        ]),
-      );
+        ),
+      ],
+    ),
+  );
 }
 
 class _LinksPanel extends ConsumerWidget {
@@ -374,47 +417,61 @@ class _LinksPanel extends ConsumerWidget {
     final cards = parseFlashcards(note);
 
     Widget header(String text, int count) => Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-          child: Text('$text ($count)', style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary)),
-        );
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Text('$text ($count)', style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary)),
+    );
 
-    return ListView(children: [
-      header('Backlinks', backlinks.length),
-      if (backlinks.isEmpty)
-        const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('Chưa có note nào liên kết tới đây.')),
-      for (final b in backlinks)
-        ListTile(
-          dense: true,
-          leading: const Icon(Icons.subdirectory_arrow_left, size: 18),
-          title: Text(b.title),
-          subtitle: Text(_contextLine(b, note), maxLines: 2, overflow: TextOverflow.ellipsis),
-          onTap: () => openNote(ref, b.path),
-        ),
-      header('Liên kết đi', outgoing.length),
-      for (final l in outgoing)
-        Builder(builder: (context) {
-          final resolved = index.resolve(l.target);
-          return ListTile(
+    return ListView(
+      children: [
+        header('Backlinks', backlinks.length),
+        if (backlinks.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Text('Chưa có note nào liên kết tới đây.'),
+          ),
+        for (final b in backlinks)
+          ListTile(
             dense: true,
-            leading: Icon(resolved == null ? Icons.add_link : Icons.arrow_outward, size: 18),
-            title: Text(l.target,
-                style: resolved == null ? TextStyle(color: theme.colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic) : null),
-            subtitle: resolved == null ? const Text('Chưa có note – bấm để tạo') : null,
-            onTap: () => followWikilink(ref, l.target),
-          );
-        }),
-      header('Tags', note.tags.length),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Wrap(spacing: 6, runSpacing: 6, children: [
-          for (final t in note.tags) ActionChip(label: Text('#$t'), onPressed: () => openSearch(ref, '#$t')),
-        ]),
-      ),
-      header('Flashcards trong note', cards.length),
-      for (final c in cards)
-        ListTile(dense: true, title: Text(c.question), subtitle: Text(c.answer)),
-      const SizedBox(height: 16),
-    ]);
+            leading: const Icon(Icons.subdirectory_arrow_left, size: 18),
+            title: Text(b.title),
+            subtitle: Text(_contextLine(b, note), maxLines: 2, overflow: TextOverflow.ellipsis),
+            onTap: () => openNote(ref, b.path),
+          ),
+        header('Liên kết đi', outgoing.length),
+        for (final l in outgoing)
+          Builder(
+            builder: (context) {
+              final resolved = index.resolve(l.target);
+              return ListTile(
+                dense: true,
+                leading: Icon(resolved == null ? Icons.add_link : Icons.arrow_outward, size: 18),
+                title: Text(
+                  l.target,
+                  style: resolved == null
+                      ? TextStyle(color: theme.colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic)
+                      : null,
+                ),
+                subtitle: resolved == null ? const Text('Chưa có note – bấm để tạo') : null,
+                onTap: () => followWikilink(ref, l.target),
+              );
+            },
+          ),
+        header('Tags', note.tags.length),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final t in note.tags) ActionChip(label: Text('#$t'), onPressed: () => openSearch(ref, '#$t')),
+            ],
+          ),
+        ),
+        header('Flashcards trong note', cards.length),
+        for (final c in cards) ListTile(dense: true, title: Text(c.question), subtitle: Text(c.answer)),
+        const SizedBox(height: 16),
+      ],
+    );
   }
 
   static String _contextLine(Note from, Note to) {

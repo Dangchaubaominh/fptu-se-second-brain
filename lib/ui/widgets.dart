@@ -21,7 +21,10 @@ class PageHeader extends StatelessWidget {
               children: [
                 Text(title, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                 if (subtitle != null)
-                  Text(subtitle!, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                  Text(
+                    subtitle!,
+                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
               ],
             ),
           ),
@@ -53,9 +56,11 @@ class EmptyState extends StatelessWidget {
             Text(title, style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
             if (message != null) ...[
               const SizedBox(height: 4),
-              Text(message!,
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              Text(
+                message!,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
             ],
             if (action != null) ...[const SizedBox(height: 16), action!],
           ],
@@ -66,16 +71,16 @@ class EmptyState extends StatelessWidget {
 }
 
 Color statusColor(CourseStatus s, ColorScheme scheme) => switch (s) {
-      CourseStatus.todo => scheme.outline,
-      CourseStatus.learning => Colors.amber.shade700,
-      CourseStatus.done => Colors.green.shade600,
-    };
+  CourseStatus.todo => scheme.outline,
+  CourseStatus.learning => Colors.amber.shade700,
+  CourseStatus.done => Colors.green.shade600,
+};
 
 IconData statusIcon(CourseStatus s) => switch (s) {
-      CourseStatus.todo => Icons.radio_button_unchecked,
-      CourseStatus.learning => Icons.timelapse,
-      CourseStatus.done => Icons.check_circle,
-    };
+  CourseStatus.todo => Icons.radio_button_unchecked,
+  CourseStatus.learning => Icons.timelapse,
+  CourseStatus.done => Icons.check_circle,
+};
 
 String relativeTime(DateTime t) {
   final d = DateTime.now().difference(t);

@@ -63,10 +63,19 @@ Nên khởi tạo TextEditingController ở đâu?::initState()
 
 > Danh sách môn trong vault mẫu chỉ để tham khảo. Curriculum khác nhau giữa các khóa, hãy đối chiếu với FAP.
 
+## Phát hành & cập nhật
+
+- **CI** (`.github/workflows/ci.yml`): mỗi lần push lên `main` hoặc mở pull request, GitHub chạy `flutter analyze` và `flutter test`.
+- **Release** (`.github/workflows/release.yml`): đẩy tag phiên bản thì GitHub build bản Windows, nén zip và tạo Release.
+  1. Tăng `version:` trong `pubspec.yaml` (ví dụ `1.1.0+2`), commit và push.
+  2. `git tag v1.1.0`, rồi `git push origin v1.1.0`. Tag phải trùng với version, nếu không workflow sẽ dừng.
+- **Tự kiểm tra cập nhật**: mỗi lần mở, app hỏi GitHub có Release mới hơn không và hiện "Có bản x.y.z, tải về?". Có thể kiểm tra thủ công trong Cài đặt → Phiên bản. Chỉ hoạt động khi repo để Public.
+
 ## Lộ trình phát triển tiếp
 
 - [ ] Đổi tên note và tự cập nhật mọi `[[link]]` trỏ tới nó
-- [ ] Gợi ý tự động khi gõ `[[` trong editor, quick switcher (Ctrl+O)
+- [x] Gợi ý tự động khi gõ `[[` trong editor
+- [ ] Quick switcher (Ctrl+O)
 - [ ] Hiển thị ảnh nhúng `![[image.png]]` từ vault
 - [ ] AI: hỏi đáp trên toàn vault (RAG), sinh đề trắc nghiệm kiểu FE theo môn
 - [ ] Thống kê ôn tập (heatmap, retention), xuất/nhập bộ thẻ

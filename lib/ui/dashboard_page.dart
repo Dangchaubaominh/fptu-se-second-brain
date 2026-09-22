@@ -62,64 +62,77 @@ class DashboardPage extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 24),
-        LayoutBuilder(builder: (context, c) {
-          final wide = c.maxWidth > 900;
-          final left = _Section(
-            title: 'Tiến độ theo kỳ',
-            child: semesters.isEmpty
-                ? const Text('Chưa có note môn học nào (frontmatter `type: course`).')
-                : Column(
+        LayoutBuilder(
+          builder: (context, c) {
+            final wide = c.maxWidth > 900;
+            final left = _Section(
+              title: 'Tiến độ theo kỳ',
+              child: semesters.isEmpty
+                  ? const Text('Chưa có note môn học nào (frontmatter `type: course`).')
+                  : Column(
+                      children: [
+                        for (final e in (semesters.entries.toList()..sort((a, b) => a.key.compareTo(b.key))))
+                          _SemesterProgress(semester: e.key, courses: e.value),
+                      ],
+                    ),
+            );
+            final right = Column(
+              children: [
+                _Section(
+                  title: 'Đang học',
+                  child: learning.isEmpty
+                      ? Text(
+                          'Chưa đánh dấu môn nào là "Đang học". Vào mục Môn học để cập nhật.',
+                          style: theme.textTheme.bodySmall,
+                        )
+                      : Column(
+                          children: [
+                            for (final c in learning)
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(Icons.timelapse, color: statusColor(c.status, theme.colorScheme)),
+                                title: Text(c.courseCode),
+                                subtitle: Text(c.courseName),
+                                onTap: () => openNote(ref, c.path),
+                              ),
+                          ],
+                        ),
+                ),
+                const SizedBox(height: 16),
+                _Section(
+                  title: 'Chỉnh sửa gần đây',
+                  child: Column(
                     children: [
-                      for (final e in (semesters.entries.toList()..sort((a, b) => a.key.compareTo(b.key))))
-                        _SemesterProgress(semester: e.key, courses: e.value),
-                    ],
-                  ),
-          );
-          final right = Column(children: [
-            _Section(
-              title: 'Đang học',
-              child: learning.isEmpty
-                  ? Text('Chưa đánh dấu môn nào là "Đang học". Vào mục Môn học để cập nhật.',
-                      style: theme.textTheme.bodySmall)
-                  : Column(children: [
-                      for (final c in learning)
+                      for (final n in index.recent.take(8))
                         ListTile(
                           dense: true,
                           contentPadding: EdgeInsets.zero,
-                          leading: Icon(Icons.timelapse, color: statusColor(c.status, theme.colorScheme)),
-                          title: Text(c.courseCode),
-                          subtitle: Text(c.courseName),
-                          onTap: () => openNote(ref, c.path),
+                          leading: const Icon(Icons.description_outlined),
+                          title: Text(n.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          trailing: Text(relativeTime(n.modified), style: theme.textTheme.bodySmall),
+                          onTap: () => openNote(ref, n.path),
                         ),
-                    ]),
-            ),
-            const SizedBox(height: 16),
-            _Section(
-              title: 'Chỉnh sửa gần đây',
-              child: Column(children: [
-                for (final n in index.recent.take(8))
-                  ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.description_outlined),
-                    title: Text(n.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    trailing: Text(relativeTime(n.modified), style: theme.textTheme.bodySmall),
-                    onTap: () => openNote(ref, n.path),
+                    ],
                   ),
-              ]),
-            ),
-          ]);
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: wide
-                ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Expanded(flex: 3, child: left),
-                    const SizedBox(width: 16),
-                    Expanded(flex: 2, child: right),
-                  ])
-                : Column(children: [left, const SizedBox(height: 16), right]),
-          );
-        }),
+                ),
+              ],
+            );
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: wide
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 3, child: left),
+                        const SizedBox(width: 16),
+                        Expanded(flex: 2, child: right),
+                      ],
+                    )
+                  : Column(children: [left, const SizedBox(height: 16), right]),
+            );
+          },
+        ),
       ],
     );
   }
@@ -146,19 +159,26 @@ class _StatCard extends StatelessWidget {
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(children: [
-              Icon(icon, color: scheme.primary, size: 28),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(value,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
-                  Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall),
-                ]),
-              ),
-            ]),
+            child: Row(
+              children: [
+                Icon(icon, color: scheme.primary, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -173,15 +193,18 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 12),
-            child,
-          ]),
-        ),
-      );
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    ),
+  );
 }
 
 class _SemesterProgress extends StatelessWidget {
@@ -196,28 +219,42 @@ class _SemesterProgress extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(children: [
-        SizedBox(width: 56, child: Text('Kỳ $semester', style: const TextStyle(fontWeight: FontWeight.w600))),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: SizedBox(
-              height: 10,
-              child: Row(children: [
-                if (done > 0) Expanded(flex: done, child: Container(color: statusColor(CourseStatus.done, scheme))),
-                if (learning > 0)
-                  Expanded(flex: learning, child: Container(color: statusColor(CourseStatus.learning, scheme))),
-                if (courses.length - done - learning > 0)
-                  Expanded(
-                    flex: courses.length - done - learning,
-                    child: Container(color: scheme.surfaceContainerHighest),
-                  ),
-              ]),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 56,
+            child: Text('Kỳ $semester', style: const TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: SizedBox(
+                height: 10,
+                child: Row(
+                  children: [
+                    if (done > 0)
+                      Expanded(
+                        flex: done,
+                        child: Container(color: statusColor(CourseStatus.done, scheme)),
+                      ),
+                    if (learning > 0)
+                      Expanded(
+                        flex: learning,
+                        child: Container(color: statusColor(CourseStatus.learning, scheme)),
+                      ),
+                    if (courses.length - done - learning > 0)
+                      Expanded(
+                        flex: courses.length - done - learning,
+                        child: Container(color: scheme.surfaceContainerHighest),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-        SizedBox(width: 56, child: Text('$done/${courses.length}', textAlign: TextAlign.end)),
-      ]),
+          SizedBox(width: 56, child: Text('$done/${courses.length}', textAlign: TextAlign.end)),
+        ],
+      ),
     );
   }
 }

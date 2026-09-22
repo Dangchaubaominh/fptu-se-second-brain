@@ -23,7 +23,13 @@ void main() {
       SharedPreferences.setMockInitialValues({'vaultPath': dir!.path});
       final prefs = await tester.runAsync(SharedPreferences.getInstance);
 
-      final container = ProviderContainer(overrides: [prefsProvider.overrideWithValue(prefs!)]);
+      final container = ProviderContainer(
+        overrides: [
+          prefsProvider.overrideWithValue(prefs!),
+          autoUpdateCheckProvider.overrideWithValue(false),
+          appVersionProvider.overrideWith((_) async => '1.0.0'),
+        ],
+      );
       addTearDown(container.dispose);
       // Load real file I/O outside the fake-async zone before building widgets.
       await tester.runAsync(() async {

@@ -22,20 +22,22 @@ class ClaudeClient {
   final http.Client _http;
 
   Map<String, String> get _headers => {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        // If the model declines a request, the API retries it on a recommended fallback model.
-        'anthropic-beta': 'server-side-fallback-2026-07-01',
-      };
+    'content-type': 'application/json',
+    'x-api-key': apiKey,
+    'anthropic-version': '2023-06-01',
+    // If the model declines a request, the API retries it on a recommended fallback model.
+    'anthropic-beta': 'server-side-fallback-2026-07-01',
+  };
 
   Map<String, dynamic> _body(String system, List<ChatMessage> messages, int maxTokens) => {
-        'model': model,
-        'max_tokens': maxTokens,
-        'fallbacks': 'default',
-        'system': system,
-        'messages': [for (final m in messages) {'role': m.role, 'content': m.content}],
-      };
+    'model': model,
+    'max_tokens': maxTokens,
+    'fallbacks': 'default',
+    'system': system,
+    'messages': [
+      for (final m in messages) {'role': m.role, 'content': m.content},
+    ],
+  };
 
   /// Streams text deltas. Used for summaries and chat so long answers
   /// render progressively and don't hit HTTP timeouts.

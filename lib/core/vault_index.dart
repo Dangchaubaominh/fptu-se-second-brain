@@ -10,8 +10,7 @@ enum CourseStatus {
   const CourseStatus(this.label);
   final String label;
 
-  static CourseStatus parse(Object? v) =>
-      values.firstWhere((s) => s.name == v?.toString(), orElse: () => todo);
+  static CourseStatus parse(Object? v) => values.firstWhere((s) => s.name == v?.toString(), orElse: () => todo);
 }
 
 class Note {
@@ -113,9 +112,10 @@ class VaultIndex {
   VaultIndex withNote(Note note) => VaultIndex(root, {...notes, note.path: note}.values);
   VaultIndex without(String path) => VaultIndex(root, notes.values.where((n) => n.path != path));
 
-  List<Note> get courses =>
-      notes.values.where((n) => n.isCourse).toList()
-        ..sort((a, b) => a.semester != b.semester ? a.semester.compareTo(b.semester) : a.courseCode.compareTo(b.courseCode));
+  List<Note> get courses => notes.values.where((n) => n.isCourse).toList()
+    ..sort(
+      (a, b) => a.semester != b.semester ? a.semester.compareTo(b.semester) : a.courseCode.compareTo(b.courseCode),
+    );
 
   List<Note> get recent => notes.values.toList()..sort((a, b) => b.modified.compareTo(a.modified));
 
@@ -168,15 +168,20 @@ class VaultIndex {
       final start = (idx - 60).clamp(0, n.content.length);
       final end = (idx + terms.first.length + 100).clamp(0, n.content.length);
       final snippet = n.content.substring(start, end).replaceAll('\n', ' ');
-      hits.add(SearchHit(n, score, '${start > 0 ? '…' : ''}$snippet${end < n.content.length ? '…' : ''}',
-          idx - start + (start > 0 ? 1 : 0), idx - start + (start > 0 ? 1 : 0) + terms.first.length));
+      hits.add(
+        SearchHit(
+          n,
+          score,
+          '${start > 0 ? '…' : ''}$snippet${end < n.content.length ? '…' : ''}',
+          idx - start + (start > 0 ? 1 : 0),
+          idx - start + (start > 0 ? 1 : 0) + terms.first.length,
+        ),
+      );
     }
     hits.sort((a, b) => b.score.compareTo(a.score));
     return hits.take(limit).toList();
   }
 
-  static String _firstLine(String body) => body
-      .split('\n')
-      .map((l) => l.trim())
-      .firstWhere((l) => l.isNotEmpty && !l.startsWith('#'), orElse: () => '');
+  static String _firstLine(String body) =>
+      body.split('\n').map((l) => l.trim()).firstWhere((l) => l.isNotEmpty && !l.startsWith('#'), orElse: () => '');
 }

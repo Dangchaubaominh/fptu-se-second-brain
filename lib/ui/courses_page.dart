@@ -27,13 +27,27 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
         title: const Text('Thêm môn học'),
         content: SizedBox(
           width: 360,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(controller: code, autofocus: true, decoration: const InputDecoration(labelText: 'Mã môn (vd: PRM392)')),
-            const SizedBox(height: 12),
-            TextField(controller: name, decoration: const InputDecoration(labelText: 'Tên môn')),
-            const SizedBox(height: 12),
-            TextField(controller: sem, decoration: const InputDecoration(labelText: 'Kỳ'), keyboardType: TextInputType.number),
-          ]),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: code,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Mã môn (vd: PRM392)'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(labelText: 'Tên môn'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: sem,
+                decoration: const InputDecoration(labelText: 'Kỳ'),
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
@@ -44,7 +58,13 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
     if (ok != true || code.text.trim().isEmpty) return;
     final c = code.text.trim().toUpperCase();
     final s = int.tryParse(sem.text) ?? 1;
-    final note = await ref.read(vaultProvider.notifier).create('Courses', c, content: '''
+    final note = await ref
+        .read(vaultProvider.notifier)
+        .create(
+          'Courses',
+          c,
+          content:
+              '''
 ---
 type: course
 code: $c
@@ -63,7 +83,8 @@ tags: [course, ky$s]
 -
 
 ## Flashcards
-''');
+''',
+        );
     if (mounted) openNote(ref, note.path);
   }
 
@@ -95,16 +116,23 @@ tags: [course, ky$s]
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Wrap(spacing: 8, children: [
-            ChoiceChip(label: Text('Tất cả (${all.length})'), selected: _filter == null, onSelected: (_) => setState(() => _filter = null)),
-            for (final s in CourseStatus.values)
+          child: Wrap(
+            spacing: 8,
+            children: [
               ChoiceChip(
-                avatar: Icon(statusIcon(s), size: 16),
-                label: Text('${s.label} (${all.where((c) => c.status == s).length})'),
-                selected: _filter == s,
-                onSelected: (_) => setState(() => _filter = s),
+                label: Text('Tất cả (${all.length})'),
+                selected: _filter == null,
+                onSelected: (_) => setState(() => _filter = null),
               ),
-          ]),
+              for (final s in CourseStatus.values)
+                ChoiceChip(
+                  avatar: Icon(statusIcon(s), size: 16),
+                  label: Text('${s.label} (${all.where((c) => c.status == s).length})'),
+                  selected: _filter == s,
+                  onSelected: (_) => setState(() => _filter = s),
+                ),
+            ],
+          ),
         ),
         const SizedBox(height: 8),
         Expanded(
@@ -120,8 +148,10 @@ tags: [course, ky$s]
                     for (final s in sems) ...[
                       Padding(
                         padding: const EdgeInsets.only(top: 12, bottom: 8),
-                        child: Text(s == 0 ? 'Chưa xếp kỳ' : 'Kỳ $s',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                        child: Text(
+                          s == 0 ? 'Chưa xếp kỳ' : 'Kỳ $s',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                        ),
                       ),
                       Wrap(
                         spacing: 12,
@@ -150,10 +180,10 @@ class _CourseCard extends ConsumerWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final linked = index.outgoing[course.path] ?? const <String>{};
-    final cardCount = [course.path, ...linked]
-        .map((p) => index.notes[p])
-        .whereType<Note>()
-        .fold<int>(0, (s, n) => s + parseFlashcards(n).length);
+    final cardCount = [
+      course.path,
+      ...linked,
+    ].map((p) => index.notes[p]).whereType<Note>().fold<int>(0, (s, n) => s + parseFlashcards(n).length);
     final missingPrereq = course.prerequisites.where((code) {
       final p = index.resolve(code);
       return p != null && index.notes[p]!.status != CourseStatus.done;
@@ -166,57 +196,80 @@ class _CourseCard extends ConsumerWidget {
         child: InkWell(
           onTap: () => openNote(ref, course.path),
           child: Container(
-            decoration: BoxDecoration(border: Border(left: BorderSide(color: statusColor(course.status, scheme), width: 4))),
+            decoration: BoxDecoration(
+              border: Border(left: BorderSide(color: statusColor(course.status, scheme), width: 4)),
+            ),
             padding: const EdgeInsets.fromLTRB(14, 10, 4, 12),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Expanded(
-                  child: Text(course.courseCode,
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        course.courseCode,
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    PopupMenuButton<CourseStatus>(
+                      tooltip: 'Đổi trạng thái',
+                      onSelected: (s) => _setStatus(ref, s),
+                      itemBuilder: (_) => [
+                        for (final s in CourseStatus.values)
+                          PopupMenuItem(
+                            value: s,
+                            child: Row(
+                              children: [
+                                Icon(statusIcon(s), color: statusColor(s, scheme), size: 18),
+                                const SizedBox(width: 8),
+                                Text(s.label),
+                              ],
+                            ),
+                          ),
+                      ],
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(statusIcon(course.status), color: statusColor(course.status, scheme), size: 18),
+                            const SizedBox(width: 4),
+                            Text(course.status.label, style: theme.textTheme.labelMedium),
+                            const Icon(Icons.arrow_drop_down, size: 18),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                PopupMenuButton<CourseStatus>(
-                  tooltip: 'Đổi trạng thái',
-                  onSelected: (s) => _setStatus(ref, s),
-                  itemBuilder: (_) => [
-                    for (final s in CourseStatus.values)
-                      PopupMenuItem(
-                        value: s,
-                        child: Row(children: [
-                          Icon(statusIcon(s), color: statusColor(s, scheme), size: 18),
-                          const SizedBox(width: 8),
-                          Text(s.label),
-                        ]),
+                Text(
+                  course.courseName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  children: [
+                    _Meta(icon: Icons.link, text: '${linked.length} liên kết'),
+                    _Meta(icon: Icons.style_outlined, text: '$cardCount thẻ'),
+                    if (course.prerequisites.isNotEmpty)
+                      Tooltip(
+                        message: missingPrereq.isEmpty
+                            ? 'Đã hoàn thành môn tiên quyết'
+                            : 'Chưa hoàn thành: ${missingPrereq.join(', ')}',
+                        child: _Meta(
+                          icon: missingPrereq.isEmpty ? Icons.lock_open : Icons.lock_outline,
+                          text: course.prerequisites.join(', '),
+                          color: missingPrereq.isEmpty ? null : scheme.error,
+                        ),
                       ),
                   ],
-                  child: Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(statusIcon(course.status), color: statusColor(course.status, scheme), size: 18),
-                      const SizedBox(width: 4),
-                      Text(course.status.label, style: theme.textTheme.labelMedium),
-                      const Icon(Icons.arrow_drop_down, size: 18),
-                    ]),
-                  ),
                 ),
-              ]),
-              Text(course.courseName, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium),
-              const SizedBox(height: 10),
-              Wrap(spacing: 12, runSpacing: 4, children: [
-                _Meta(icon: Icons.link, text: '${linked.length} liên kết'),
-                _Meta(icon: Icons.style_outlined, text: '$cardCount thẻ'),
-                if (course.prerequisites.isNotEmpty)
-                  Tooltip(
-                    message: missingPrereq.isEmpty
-                        ? 'Đã hoàn thành môn tiên quyết'
-                        : 'Chưa hoàn thành: ${missingPrereq.join(', ')}',
-                    child: _Meta(
-                      icon: missingPrereq.isEmpty ? Icons.lock_open : Icons.lock_outline,
-                      text: course.prerequisites.join(', '),
-                      color: missingPrereq.isEmpty ? null : scheme.error,
-                    ),
-                  ),
-              ]),
-            ]),
+              ],
+            ),
           ),
         ),
       ),
@@ -233,10 +286,13 @@ class _Meta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = color ?? Theme.of(context).colorScheme.onSurfaceVariant;
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(icon, size: 14, color: c),
-      const SizedBox(width: 4),
-      Text(text, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: c)),
-    ]);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: c),
+        const SizedBox(width: 4),
+        Text(text, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: c)),
+      ],
+    );
   }
 }

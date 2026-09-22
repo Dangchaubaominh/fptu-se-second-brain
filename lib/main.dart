@@ -10,10 +10,7 @@ const fptOrange = Color(0xFFF27024);
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
-  runApp(ProviderScope(
-    overrides: [prefsProvider.overrideWithValue(prefs)],
-    child: const FptuBrainApp(),
-  ));
+  runApp(ProviderScope(overrides: [prefsProvider.overrideWithValue(prefs)], child: const FptuBrainApp()));
 }
 
 class FptuBrainApp extends ConsumerWidget {

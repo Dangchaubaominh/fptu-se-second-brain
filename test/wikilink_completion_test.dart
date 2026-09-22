@@ -70,15 +70,17 @@ void main() {
   group('MarkdownEditor popup', () {
     Future<TextEditingController> pumpEditor(WidgetTester tester) async {
       final ctrl = TextEditingController();
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 800,
-            height: 600,
-            child: MarkdownEditor(controller: ctrl, onChanged: (_) {}, index: index),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 800,
+              height: 600,
+              child: MarkdownEditor(controller: ctrl, onChanged: (_) {}, index: index),
+            ),
           ),
         ),
-      ));
+      );
       return ctrl;
     }
 

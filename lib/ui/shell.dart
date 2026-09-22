@@ -10,10 +10,27 @@ import 'notes_page.dart';
 import 'review_page.dart';
 import 'search_page.dart';
 import 'settings_page.dart';
+import 'update_dialog.dart';
 import 'welcome_page.dart';
 
-class AppShell extends ConsumerWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
+
+  @override
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> {
+  @override
+  void initState() {
+    super.initState();
+    if (ref.read(autoUpdateCheckProvider)) {
+      // Once per launch, after the first frame so a dialog can be shown.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) checkForUpdates(context, ref, manual: false);
+      });
+    }
+  }
 
   static const _destinations = [
     (AppPage.dashboard, Icons.space_dashboard_outlined, Icons.space_dashboard, 'Tổng quan'),
@@ -26,7 +43,7 @@ class AppShell extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final vaultPath = ref.watch(settingsProvider.select((s) => s.vaultPath));
     if (vaultPath == null) return const WelcomePage();
 
@@ -64,9 +81,7 @@ class AppShell extends ConsumerWidget {
                 destinations: [
                   for (final (p, icon, selIcon, label) in _destinations)
                     NavigationRailDestination(
-                      icon: p == AppPage.review && due > 0
-                          ? Badge.count(count: due, child: Icon(icon))
-                          : Icon(icon),
+                      icon: p == AppPage.review && due > 0 ? Badge.count(count: due, child: Icon(icon)) : Icon(icon),
                       selectedIcon: Icon(selIcon),
                       label: Text(label),
                     ),
@@ -105,27 +120,27 @@ class _VaultError extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => Center(
-        child: Column(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.folder_off_outlined, size: 48),
+        const SizedBox(height: 12),
+        Text('Không mở được vault', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 4),
+        Text('$error', textAlign: TextAlign.center),
+        const SizedBox(height: 16),
+        Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.folder_off_outlined, size: 48),
-            const SizedBox(height: 12),
-            Text('Không mở được vault', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text('$error', textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            Row(mainAxisSize: MainAxisSize.min, children: [
-              OutlinedButton(
-                onPressed: () => ref.read(vaultProvider.notifier).reload(),
-                child: const Text('Thử lại'),
-              ),
-              const SizedBox(width: 8),
-              FilledButton(
-                onPressed: () => ref.read(settingsProvider.notifier).setVaultPath(null),
-                child: const Text('Chọn vault khác'),
-              ),
-            ]),
+            OutlinedButton(onPressed: () => ref.read(vaultProvider.notifier).reload(), child: const Text('Thử lại')),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: () => ref.read(settingsProvider.notifier).setVaultPath(null),
+              child: const Text('Chọn vault khác'),
+            ),
           ],
         ),
-      );
+      ],
+    ),
+  );
 }

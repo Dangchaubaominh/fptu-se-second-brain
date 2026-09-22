@@ -20,11 +20,7 @@ const _canvas = Size(2400, 1800);
 /// Fruchterman–Reingold force-directed layout (deterministic seed so the
 /// graph doesn't jump around between rebuilds).
 _Layout _computeLayout(VaultIndex index, {required bool coursesOnly}) {
-  final ids = index.notes.values
-      .where((n) => !coursesOnly || n.isCourse)
-      .map((n) => n.path)
-      .toList()
-    ..sort();
+  final ids = index.notes.values.where((n) => !coursesOnly || n.isCourse).map((n) => n.path).toList()..sort();
   final at = {for (var i = 0; i < ids.length; i++) ids[i]: i};
   final edges = <(int, int)>{};
   for (final e in index.outgoing.entries) {
@@ -43,7 +39,9 @@ _Layout _computeLayout(VaultIndex index, {required bool coursesOnly}) {
   }
   final rnd = Random(42);
   final pos = List.generate(
-      n, (_) => Offset(_canvas.width * (0.3 + rnd.nextDouble() * 0.4), _canvas.height * (0.3 + rnd.nextDouble() * 0.4)));
+    n,
+    (_) => Offset(_canvas.width * (0.3 + rnd.nextDouble() * 0.4), _canvas.height * (0.3 + rnd.nextDouble() * 0.4)),
+  );
   if (n == 0) return _Layout(ids, pos, edges.toList(), degree);
 
   final k = sqrt(_canvas.width * _canvas.height / n) * 0.45;
@@ -139,63 +137,72 @@ class _GraphPageState extends ConsumerState<GraphPage> {
     final layout = _layout!;
     final scheme = Theme.of(context).colorScheme;
 
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      PageHeader(
-        title: 'Graph view',
-        subtitle: '${layout.ids.length} note · ${layout.edges.length} liên kết. Cuộn để zoom, kéo để di chuyển, bấm vào nút để mở note.',
-        actions: [
-          FilterChip(
-            label: const Text('Chỉ môn học'),
-            selected: _coursesOnly,
-            onSelected: (v) => setState(() => _coursesOnly = v),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PageHeader(
+          title: 'Graph view',
+          subtitle:
+              '${layout.ids.length} note · ${layout.edges.length} liên kết. Cuộn để zoom, kéo để di chuyển, bấm vào nút để mở note.',
+          actions: [
+            FilterChip(
+              label: const Text('Chỉ môn học'),
+              selected: _coursesOnly,
+              onSelected: (v) => setState(() => _coursesOnly = v),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Wrap(
+            spacing: 16,
+            children: [
+              _Legend(color: scheme.primary, label: 'Môn học'),
+              _Legend(color: scheme.tertiary, label: 'Khái niệm'),
+              _Legend(color: scheme.outline, label: 'Ghi chú khác'),
+            ],
           ),
-        ],
-      ),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Wrap(spacing: 16, children: [
-          _Legend(color: scheme.primary, label: 'Môn học'),
-          _Legend(color: scheme.tertiary, label: 'Khái niệm'),
-          _Legend(color: scheme.outline, label: 'Ghi chú khác'),
-        ]),
-      ),
-      const SizedBox(height: 8),
-      Expanded(
-        child: layout.ids.isEmpty
-            ? const EmptyState(icon: Icons.hub_outlined, title: 'Chưa có dữ liệu để vẽ graph')
-            : LayoutBuilder(builder: (context, c) {
-                if (_tc.value.isIdentity()) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) => _fit(c.biggest));
-                }
-                return ClipRect(
-                  child: InteractiveViewer(
-                    transformationController: _tc,
-                    constrained: false,
-                    minScale: 0.1,
-                    maxScale: 4,
-                    boundaryMargin: const EdgeInsets.all(800),
-                    child: MouseRegion(
-                      onHover: (e) {
-                        final h = _hit(e.localPosition);
-                        if (h != _hover) setState(() => _hover = h);
-                      },
-                      cursor: _hover == null ? MouseCursor.defer : SystemMouseCursors.click,
-                      child: GestureDetector(
-                        onTapUp: (e) {
-                          final h = _hit(e.localPosition);
-                          if (h != null) openNote(ref, layout.ids[h]);
-                        },
-                        child: CustomPaint(
-                          size: _canvas,
-                          painter: _GraphPainter(layout, index, _hover, scheme, _tc),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: layout.ids.isEmpty
+              ? const EmptyState(icon: Icons.hub_outlined, title: 'Chưa có dữ liệu để vẽ graph')
+              : LayoutBuilder(
+                  builder: (context, c) {
+                    if (_tc.value.isIdentity()) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) => _fit(c.biggest));
+                    }
+                    return ClipRect(
+                      child: InteractiveViewer(
+                        transformationController: _tc,
+                        constrained: false,
+                        minScale: 0.1,
+                        maxScale: 4,
+                        boundaryMargin: const EdgeInsets.all(800),
+                        child: MouseRegion(
+                          onHover: (e) {
+                            final h = _hit(e.localPosition);
+                            if (h != _hover) setState(() => _hover = h);
+                          },
+                          cursor: _hover == null ? MouseCursor.defer : SystemMouseCursors.click,
+                          child: GestureDetector(
+                            onTapUp: (e) {
+                              final h = _hit(e.localPosition);
+                              if (h != null) openNote(ref, layout.ids[h]);
+                            },
+                            child: CustomPaint(
+                              size: _canvas,
+                              painter: _GraphPainter(layout, index, _hover, scheme, _tc),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                );
-              }),
-      ),
-    ]);
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
   }
 }
 
@@ -205,11 +212,14 @@ class _Legend extends StatelessWidget {
   final String label;
 
   @override
-  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
-        CircleAvatar(radius: 5, backgroundColor: color),
-        const SizedBox(width: 6),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
-      ]);
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      CircleAvatar(radius: 5, backgroundColor: color),
+      const SizedBox(width: 6),
+      Text(label, style: Theme.of(context).textTheme.bodySmall),
+    ],
+  );
 }
 
 class _GraphPainter extends CustomPainter {
@@ -245,16 +255,20 @@ class _GraphPainter extends CustomPainter {
       final base = note.isCourse
           ? scheme.primary
           : note.frontmatter['type'] == 'concept'
-              ? scheme.tertiary
-              : scheme.outline;
+          ? scheme.tertiary
+          : scheme.outline;
       final faded = dim && i != hover && !neighbors.contains(i);
       final r = _GraphPageState._radius(l.degree[i]);
       canvas.drawCircle(l.pos[i], r, Paint()..color = faded ? base.withValues(alpha: 0.2) : base);
       if (i == hover) {
-        canvas.drawCircle(l.pos[i], r + 3, Paint()
-          ..color = scheme.primary
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2);
+        canvas.drawCircle(
+          l.pos[i],
+          r + 3,
+          Paint()
+            ..color = scheme.primary
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2,
+        );
       }
       // Show labels when zoomed in, for hubs, or around the hovered node.
       final showLabel = i == hover || neighbors.contains(i) || (!dim && (scale > 0.6 || l.degree[i] >= 4));
@@ -275,6 +289,5 @@ class _GraphPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_GraphPainter old) =>
-      old.l != l || old.hover != hover || old.scheme != scheme;
+  bool shouldRepaint(_GraphPainter old) => old.l != l || old.hover != hover || old.scheme != scheme;
 }

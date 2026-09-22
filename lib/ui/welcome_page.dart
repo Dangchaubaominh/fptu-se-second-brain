@@ -57,7 +57,10 @@ class WelcomePage extends ConsumerWidget {
                     child: Icon(Icons.psychology_alt, size: 36, color: scheme.onPrimary),
                   ),
                   const SizedBox(height: 24),
-                  Text('FPTU SE Second Brain', style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  Text(
+                    'FPTU SE Second Brain',
+                    style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'Quản lý kiến thức ngành Kỹ thuật phần mềm theo từng kỳ, liên kết khái niệm như Obsidian, '

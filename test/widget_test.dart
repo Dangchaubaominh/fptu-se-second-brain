@@ -12,7 +12,9 @@ Note note(String path, String content) => Note.parse(path, content, DateTime(202
 void main() {
   group('markdown_utils', () {
     test('parses wikilinks with alias, heading, embed and ignores code', () {
-      final links = parseWikiLinks('See [[PRF192]], [[OOP#Kế thừa|kế thừa]] and ![[img.png]]\n```\n[[NotALink]]\n``` `[[nope]]`');
+      final links = parseWikiLinks(
+        'See [[PRF192]], [[OOP#Kế thừa|kế thừa]] and ![[img.png]]\n```\n[[NotALink]]\n``` `[[nope]]`',
+      );
       expect(links.map((l) => l.target), ['PRF192', 'OOP', 'img.png']);
       expect(links[1].heading, 'Kế thừa');
       expect(links[1].alias, 'kế thừa');
@@ -52,7 +54,10 @@ void main() {
 
   group('VaultIndex', () {
     final index = VaultIndex('/v', [
-      note('Courses/PRF192.md', '---\ntype: course\ncode: PRF192\nsemester: 1\naliases: [Programming Fundamentals]\n---\n[[Con trỏ]]'),
+      note(
+        'Courses/PRF192.md',
+        '---\ntype: course\ncode: PRF192\nsemester: 1\naliases: [Programming Fundamentals]\n---\n[[Con trỏ]]',
+      ),
       note('Concepts/Con trỏ.md', 'Học ở [[prf192]] và [[Programming Fundamentals]]. #c'),
       note('Home.md', '[[Courses/PRF192]] [[Missing]]'),
     ]);

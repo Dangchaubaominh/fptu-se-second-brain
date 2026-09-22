@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:watcher/watcher.dart';
 
@@ -13,6 +14,12 @@ import '../core/vault_index.dart';
 import '../core/vault_repository.dart';
 
 final prefsProvider = Provider<SharedPreferences>((ref) => throw UnimplementedError('override in main'));
+
+/// Version from pubspec.yaml, read from the built executable.
+final appVersionProvider = FutureProvider<String>((ref) async => (await PackageInfo.fromPlatform()).version);
+
+/// Whether to look for a new GitHub release on startup (disabled in tests).
+final autoUpdateCheckProvider = Provider<bool>((ref) => true);
 
 class AppSettings {
   const AppSettings({this.vaultPath, this.apiKey = '', this.themeMode = ThemeMode.system});
@@ -29,10 +36,10 @@ class SettingsNotifier extends Notifier<AppSettings> {
 
   @override
   AppSettings build() => AppSettings(
-        vaultPath: _prefs.getString('vaultPath'),
-        apiKey: _prefs.getString('apiKey') ?? '',
-        themeMode: ThemeMode.values.byName(_prefs.getString('themeMode') ?? 'system'),
-      );
+    vaultPath: _prefs.getString('vaultPath'),
+    apiKey: _prefs.getString('apiKey') ?? '',
+    themeMode: ThemeMode.values.byName(_prefs.getString('themeMode') ?? 'system'),
+  );
 
   Future<void> setVaultPath(String? path) async {
     path == null ? await _prefs.remove('vaultPath') : await _prefs.setString('vaultPath', path);
@@ -117,7 +124,8 @@ class VaultNotifier extends AsyncNotifier<VaultIndex?> {
     final note = state.value?.notes[path];
     if (note == null) return;
     var content = note.content.trimRight();
-    if (underHeading != null && !RegExp('^## ${RegExp.escape(underHeading)}\\s*\$', multiLine: true).hasMatch(content)) {
+    if (underHeading != null &&
+        !RegExp('^## ${RegExp.escape(underHeading)}\\s*\$', multiLine: true).hasMatch(content)) {
       content += '\n\n## $underHeading';
     }
     await save(path, '$content\n$text\n');

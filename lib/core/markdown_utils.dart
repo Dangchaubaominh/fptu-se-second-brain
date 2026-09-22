@@ -18,8 +18,7 @@ final _inlineCodeRe = RegExp(r'`[^`\n]*`');
 final _tagRe = RegExp(r'(?<=^|[\s(,])#([\p{L}\p{N}_/-]*[\p{L}_/-][\p{L}\p{N}_/-]*)', unicode: true);
 
 /// Removes fenced and inline code so links/tags inside code are ignored.
-String stripCode(String text) =>
-    text.replaceAll(_fenceRe, '').replaceAll(_inlineCodeRe, '');
+String stripCode(String text) => text.replaceAll(_fenceRe, '').replaceAll(_inlineCodeRe, '');
 
 WikiLink _toLink(Match m) {
   var inner = m.group(2)!.trim();
@@ -85,9 +84,7 @@ String setFrontmatterField(String content, String key, String value) {
   if (range == null) return '---\n$line\n---\n$content';
   final yamlText = content.substring(range.$1, range.$2);
   final keyRe = RegExp('^${RegExp.escape(key)}:.*\$', multiLine: true);
-  final newYaml = keyRe.hasMatch(yamlText)
-      ? yamlText.replaceFirst(keyRe, line)
-      : '${yamlText.trimRight()}\n$line\n';
+  final newYaml = keyRe.hasMatch(yamlText) ? yamlText.replaceFirst(keyRe, line) : '${yamlText.trimRight()}\n$line\n';
   return content.replaceRange(range.$1, range.$2, newYaml.endsWith('\n') ? newYaml : '$newYaml\n');
 }
 
@@ -98,9 +95,21 @@ List<String> asStringList(Object? v) {
 }
 
 const _calloutIcons = {
-  'info': 'ℹ️', 'note': '📝', 'tip': '💡', 'hint': '💡', 'important': '❗',
-  'warning': '⚠️', 'caution': '⚠️', 'danger': '⛔', 'example': '🧪',
-  'question': '❓', 'faq': '❓', 'success': '✅', 'abstract': '📌', 'summary': '📌', 'quote': '💬',
+  'info': 'ℹ️',
+  'note': '📝',
+  'tip': '💡',
+  'hint': '💡',
+  'important': '❗',
+  'warning': '⚠️',
+  'caution': '⚠️',
+  'danger': '⛔',
+  'example': '🧪',
+  'question': '❓',
+  'faq': '❓',
+  'success': '✅',
+  'abstract': '📌',
+  'summary': '📌',
+  'quote': '💬',
 };
 
 /// Converts Obsidian-only syntax into plain Markdown for the preview:
