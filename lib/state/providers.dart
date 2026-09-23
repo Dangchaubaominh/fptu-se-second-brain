@@ -15,22 +15,32 @@ import '../core/review_stats.dart';
 import '../core/vault_index.dart';
 import '../core/vault_repository.dart';
 
-final prefsProvider = Provider<SharedPreferences>((ref) => throw UnimplementedError('override in main'));
+final prefsProvider = Provider<SharedPreferences>(
+  (ref) => throw UnimplementedError('override in main'),
+);
 
 /// Version from pubspec.yaml, read from the built executable.
-final appVersionProvider = FutureProvider<String>((ref) async => (await PackageInfo.fromPlatform()).version);
+final appVersionProvider = FutureProvider<String>(
+  (ref) async => (await PackageInfo.fromPlatform()).version,
+);
 
 /// Whether to look for a new GitHub release on startup (disabled in tests).
 final autoUpdateCheckProvider = Provider<bool>((ref) => true);
 
 class AppSettings {
-  const AppSettings({this.vaultPath, this.apiKey = '', this.themeMode = ThemeMode.system});
+  const AppSettings({
+    this.vaultPath,
+    this.apiKey = '',
+    this.themeMode = ThemeMode.system,
+  });
   final String? vaultPath;
   final String apiKey;
   final ThemeMode themeMode;
 
   /// Falls back to the ANTHROPIC_API_KEY environment variable.
-  String get effectiveApiKey => apiKey.isNotEmpty ? apiKey : (Platform.environment['ANTHROPIC_API_KEY'] ?? '');
+  String get effectiveApiKey => apiKey.isNotEmpty
+      ? apiKey
+      : (Platform.environment['ANTHROPIC_API_KEY'] ?? '');
 }
 
 class SettingsNotifier extends Notifier<AppSettings> {
@@ -40,26 +50,44 @@ class SettingsNotifier extends Notifier<AppSettings> {
   AppSettings build() => AppSettings(
     vaultPath: _prefs.getString('vaultPath'),
     apiKey: _prefs.getString('apiKey') ?? '',
-    themeMode: ThemeMode.values.byName(_prefs.getString('themeMode') ?? 'system'),
+    themeMode: ThemeMode.values.byName(
+      _prefs.getString('themeMode') ?? 'system',
+    ),
   );
 
   Future<void> setVaultPath(String? path) async {
-    path == null ? await _prefs.remove('vaultPath') : await _prefs.setString('vaultPath', path);
-    state = AppSettings(vaultPath: path, apiKey: state.apiKey, themeMode: state.themeMode);
+    path == null
+        ? await _prefs.remove('vaultPath')
+        : await _prefs.setString('vaultPath', path);
+    state = AppSettings(
+      vaultPath: path,
+      apiKey: state.apiKey,
+      themeMode: state.themeMode,
+    );
   }
 
   Future<void> setApiKey(String key) async {
     await _prefs.setString('apiKey', key.trim());
-    state = AppSettings(vaultPath: state.vaultPath, apiKey: key.trim(), themeMode: state.themeMode);
+    state = AppSettings(
+      vaultPath: state.vaultPath,
+      apiKey: key.trim(),
+      themeMode: state.themeMode,
+    );
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
     await _prefs.setString('themeMode', mode.name);
-    state = AppSettings(vaultPath: state.vaultPath, apiKey: state.apiKey, themeMode: mode);
+    state = AppSettings(
+      vaultPath: state.vaultPath,
+      apiKey: state.apiKey,
+      themeMode: mode,
+    );
   }
 }
 
-final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(SettingsNotifier.new);
+final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(
+  SettingsNotifier.new,
+);
 
 final repoProvider = Provider<VaultRepository?>((ref) {
   final path = ref.watch(settingsProvider.select((s) => s.vaultPath));
@@ -88,16 +116,26 @@ class VaultNotifier extends AsyncNotifier<VaultIndex?> {
     if (VaultRepository.isAttachmentPath(rel)) {
       final known = index.attachments.containsKey(rel.toLowerCase());
       if (e.type == ChangeType.REMOVE && known) {
-        state = AsyncData(index.withAttachments(index.attachments.values.where((a) => a != rel)));
+        state = AsyncData(
+          index.withAttachments(
+            index.attachments.values.where((a) => a != rel),
+          ),
+        );
       } else if (e.type != ChangeType.REMOVE && !known) {
-        state = AsyncData(index.withAttachments([...index.attachments.values, rel]));
+        state = AsyncData(
+          index.withAttachments([...index.attachments.values, rel]),
+        );
       }
       return;
     }
     if (!VaultRepository.isNotePath(rel)) return;
     if (e.type == ChangeType.REMOVE) {
-      if (index.notes.containsKey(rel)) state = AsyncData(index.without(rel));
-      return;
+      // Atomic saves briefly move the old file aside before replacing it. Only
+      // remove the note from the index when the final path is truly gone.
+      if (!await File(repo.abs(rel)).exists()) {
+        if (index.notes.containsKey(rel)) state = AsyncData(index.without(rel));
+        return;
+      }
     }
     final note = await repo.readNote(rel);
     final current = state.value;
@@ -111,14 +149,26 @@ class VaultNotifier extends AsyncNotifier<VaultIndex?> {
     await future;
   }
 
-  Future<Note> save(String path, String content) async {
-    final note = await _repo!.writeNote(path, content);
+  Future<Note> save(
+    String path,
+    String content, {
+    String? expectedContent,
+  }) async {
+    final note = await _repo!.writeNote(
+      path,
+      content,
+      expectedContent: expectedContent,
+    );
     final index = state.value;
     if (index != null) state = AsyncData(index.withNote(note));
     return note;
   }
 
-  Future<Note> create(String folder, String title, {String content = ''}) async {
+  Future<Note> create(
+    String folder,
+    String title, {
+    String content = '',
+  }) async {
     final note = await _repo!.createNote(folder, title, content: content);
     final index = state.value;
     if (index != null) state = AsyncData(index.withNote(note));
@@ -129,15 +179,29 @@ class VaultNotifier extends AsyncNotifier<VaultIndex?> {
     await _repo!.trashNote(path);
     final index = state.value;
     if (index != null) state = AsyncData(index.without(path));
+    ref.invalidate(trashProvider);
+  }
+
+  Future<Note> restoreTrash(TrashedNote entry) async {
+    final note = await _repo!.restoreTrash(entry);
+    final index = state.value;
+    if (index != null) state = AsyncData(index.withNote(note));
+    ref.invalidate(trashProvider);
+    return note;
   }
 
   /// Renames a note in place and rewrites every `[[link]]` pointing to it.
   /// Returns the new path and how many notes had links updated.
-  Future<({String path, int linkedNotes})> rename(String oldPath, String newTitle) async {
+  Future<({String path, int linkedNotes})> rename(
+    String oldPath,
+    String newTitle,
+  ) async {
     final index = state.value!;
     final title = newTitle.trim();
     if (title.isEmpty || invalidNameChars.hasMatch(title)) {
-      throw const FormatException('Tên không hợp lệ (không dùng các ký tự \\ / : * ? " < > | # ^ [ ])');
+      throw const FormatException(
+        'Tên không hợp lệ (không dùng các ký tự \\ / : * ? " < > | # ^ [ ])',
+      );
     }
     final plan = planRename(index, oldPath, title);
     if (plan.newPath == oldPath) return (path: oldPath, linkedNotes: 0);
@@ -153,7 +217,13 @@ class VaultNotifier extends AsyncNotifier<VaultIndex?> {
     for (final e in plan.updates.entries) {
       notes[e.key] = await repo.writeNote(e.key, e.value);
     }
-    state = AsyncData(VaultIndex(index.root, notes.values, attachments: index.attachments.values));
+    state = AsyncData(
+      VaultIndex(
+        index.root,
+        notes.values,
+        attachments: index.attachments.values,
+      ),
+    );
     await ref.read(srsProvider.notifier).moveNote(oldPath, plan.newPath);
     return (path: plan.newPath, linkedNotes: plan.linkedNotes);
   }
@@ -162,23 +232,41 @@ class VaultNotifier extends AsyncNotifier<VaultIndex?> {
   Future<String> importAttachment(String sourcePath) async {
     final rel = await _repo!.importAttachment(sourcePath);
     final index = state.value;
-    if (index != null) state = AsyncData(index.withAttachments([...index.attachments.values, rel]));
+    if (index != null) {
+      state = AsyncData(
+        index.withAttachments([...index.attachments.values, rel]),
+      );
+    }
     return rel;
   }
 
-  Future<void> appendToNote(String path, String text, {String? underHeading}) async {
+  Future<void> appendToNote(
+    String path,
+    String text, {
+    String? underHeading,
+  }) async {
     final note = state.value?.notes[path];
     if (note == null) return;
     var content = note.content.trimRight();
     if (underHeading != null &&
-        !RegExp('^## ${RegExp.escape(underHeading)}\\s*\$', multiLine: true).hasMatch(content)) {
+        !RegExp(
+          '^## ${RegExp.escape(underHeading)}\\s*\$',
+          multiLine: true,
+        ).hasMatch(content)) {
       content += '\n\n## $underHeading';
     }
     await save(path, '$content\n$text\n');
   }
 }
 
-final vaultProvider = AsyncNotifierProvider<VaultNotifier, VaultIndex?>(VaultNotifier.new);
+final vaultProvider = AsyncNotifierProvider<VaultNotifier, VaultIndex?>(
+  VaultNotifier.new,
+);
+
+final trashProvider = FutureProvider<List<TrashedNote>>((ref) async {
+  final repo = ref.watch(repoProvider);
+  return repo == null ? const [] : repo.listTrash();
+});
 
 /// Simple settable value.
 class ValueCell<T> extends Notifier<T> {
@@ -191,9 +279,15 @@ class ValueCell<T> extends Notifier<T> {
 
 enum AppPage { dashboard, courses, notes, search, graph, review, ask, settings }
 
-final pageProvider = NotifierProvider<ValueCell<AppPage>, AppPage>(() => ValueCell(AppPage.dashboard));
-final selectedNoteProvider = NotifierProvider<ValueCell<String?>, String?>(() => ValueCell(null));
-final searchQueryProvider = NotifierProvider<ValueCell<String>, String>(() => ValueCell(''));
+final pageProvider = NotifierProvider<ValueCell<AppPage>, AppPage>(
+  () => ValueCell(AppPage.dashboard),
+);
+final selectedNoteProvider = NotifierProvider<ValueCell<String?>, String?>(
+  () => ValueCell(null),
+);
+final searchQueryProvider = NotifierProvider<ValueCell<String>, String>(
+  () => ValueCell(''),
+);
 
 void openNote(WidgetRef ref, String path) {
   ref.read(selectedNoteProvider.notifier).set(path);
@@ -225,7 +319,9 @@ class SrsNotifier extends AsyncNotifier<Map<String, CardState>> {
     states[card.id] = schedule(before, g, now);
     state = AsyncData(states);
     await ref.read(repoProvider)?.saveSrs(states);
-    await ref.read(reviewLogProvider.notifier).add(ReviewEntry(now, card.id, g, before.interval));
+    await ref
+        .read(reviewLogProvider.notifier)
+        .add(ReviewEntry(now, card.id, g, before.interval));
   }
 
   /// Card ids contain the note path; keep review history when a note is renamed.
@@ -235,14 +331,19 @@ class SrsNotifier extends AsyncNotifier<Map<String, CardState>> {
     if (!states.keys.any((k) => k.startsWith(prefix))) return;
     final moved = {
       for (final e in states.entries)
-        (e.key.startsWith(prefix) ? '$newPath|${e.key.substring(prefix.length)}' : e.key): e.value,
+        (e.key.startsWith(prefix)
+                ? '$newPath|${e.key.substring(prefix.length)}'
+                : e.key):
+            e.value,
     };
     state = AsyncData(moved);
     await ref.read(repoProvider)?.saveSrs(moved);
   }
 }
 
-final srsProvider = AsyncNotifierProvider<SrsNotifier, Map<String, CardState>>(SrsNotifier.new);
+final srsProvider = AsyncNotifierProvider<SrsNotifier, Map<String, CardState>>(
+  SrsNotifier.new,
+);
 
 /// Every graded review, persisted to `.fptu/review_log.json` for statistics.
 class ReviewLogNotifier extends AsyncNotifier<List<ReviewEntry>> {
@@ -259,7 +360,10 @@ class ReviewLogNotifier extends AsyncNotifier<List<ReviewEntry>> {
   }
 }
 
-final reviewLogProvider = AsyncNotifierProvider<ReviewLogNotifier, List<ReviewEntry>>(ReviewLogNotifier.new);
+final reviewLogProvider =
+    AsyncNotifierProvider<ReviewLogNotifier, List<ReviewEntry>>(
+      ReviewLogNotifier.new,
+    );
 
 final reviewStatsProvider = Provider<ReviewStats>(
   (ref) => ReviewStats.compute(
@@ -273,7 +377,9 @@ final dueCardsProvider = Provider<List<Flashcard>>((ref) {
   final cards = ref.watch(flashcardsProvider);
   final states = ref.watch(srsProvider).value ?? const {};
   final now = DateTime.now();
-  return cards.where((c) => (states[c.id] ?? const CardState()).isDue(now)).toList();
+  return cards
+      .where((c) => (states[c.id] ?? const CardState()).isDue(now))
+      .toList();
 });
 
 final aiProvider = Provider<AiAssistant?>((ref) {

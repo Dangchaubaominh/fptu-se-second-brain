@@ -78,7 +78,8 @@ Key chỉ lưu trên máy của bạn, không ghi vào vault. Cũng có thể đ
 - Trang **Ghi chú**: chọn note ở cây thư mục bên trái. Chuyển chế độ **Soạn / Chia đôi / Xem** bằng nút trên thanh công cụ. App tự lưu sau 0,7 giây, hoặc nhấn **Ctrl+S**.
 - **Liên kết:** gõ `[[` để hiện gợi ý, dùng ↑↓ chọn rồi **Enter**. Gõ tên chưa có note cũng được, bấm vào link đó sẽ tạo note mới.
 - **Ảnh:** bấm nút **Chèn ảnh** trên thanh công cụ và chọn file. Ảnh được chép vào `attachments/`. Viết `![[ảnh.png|300]]` để đặt độ rộng 300px.
-- **Đổi tên / xóa:** menu **⋮** trên thanh công cụ. Đổi tên tự sửa mọi link trỏ tới note. Note bị xóa được chuyển vào `.trash/`, có thể khôi phục bằng cách chép lại.
+- **Đổi tên / xóa:** menu **⋮** trên thanh công cụ. Đổi tên tự sửa mọi link trỏ tới note. Note bị xóa được chuyển vào `.trash/`; bấm biểu tượng **Thùng rác** trên cây file để khôi phục ngay trong app.
+- **Dùng đồng thời với Obsidian:** app phát hiện khi note đang soạn bị thay đổi từ bên ngoài và dừng autosave để tránh ghi đè. Bạn có thể nạp bản trên đĩa, giữ bản đang soạn để xử lý hoặc chủ động ghi đè.
 - Bảng bên phải: tab **Liên kết** (backlinks, liên kết đi, tags, flashcard trong note) và tab **Trợ lý AI**.
 
 ### 5. Tìm và di chuyển nhanh
@@ -108,8 +109,10 @@ Key chỉ lưu trên máy của bạn, không ghi vào vault. Cũng có thể đ
 - **Môn học**: lộ trình 9 kỳ, đổi trạng thái (Chưa học / Đang học / Hoàn thành) và ghi thẳng vào `status:` trong frontmatter, cảnh báo khi chưa qua môn tiên quyết.
 - **Ghi chú**
   - Cây thư mục, editor Markdown 3 chế độ (Soạn / Chia đôi / Xem), tự lưu sau 0,7 giây.
+  - Ghi file an toàn qua file tạm; phát hiện xung đột khi Obsidian hoặc ứng dụng khác sửa cùng note.
   - Gõ `[[` để được gợi ý note (không dấu, theo alias). Bấm `[[wikilink]]` để mở note, chưa có thì tự tạo.
   - **Đổi tên note** (menu ⋮): mọi `[[link]]` trỏ tới note trong vault được cập nhật theo, giữ nguyên `#heading` và `|alias`. Link viết bằng alias không bị đổi. Lịch ôn flashcard của note được giữ lại.
+  - **Thùng rác có khôi phục**: giữ lại đường dẫn thư mục cũ; nếu đường dẫn đã có note mới, bản khôi phục được đổi tên thay vì ghi đè.
   - **Ảnh nhúng**: hiển thị `![[ảnh.png]]`, `![[ảnh.png|300]]` (rộng 300px) và `![](đường/dẫn.png)`. Nút "Chèn ảnh" chép ảnh vào `attachments/` rồi chèn link.
   - Callout, bảng Properties, backlinks, liên kết đi, tags.
 - **Tìm kiếm**: full-text không phân biệt dấu ("con tro" ra "Con trỏ"), lọc theo `#tag`. **Ctrl+O** mở quick switcher để nhảy nhanh tới note hoặc tạo note mới.
