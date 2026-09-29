@@ -109,4 +109,5 @@ msix_config:
   capabilities: internetClient
   languages: vi-vn, en-us
   output_name: fptu-brain
+  logo_path: assets\icon\fptu-brain.png
   install_certificate: false
