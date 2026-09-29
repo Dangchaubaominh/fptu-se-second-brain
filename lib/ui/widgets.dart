@@ -70,6 +70,45 @@ class EmptyState extends StatelessWidget {
   }
 }
 
+/// A vertical divider you can drag to resize the column next to it.
+/// [onDelta] receives the horizontal movement in logical pixels.
+class DragDivider extends StatefulWidget {
+  const DragDivider({super.key, required this.onDelta, required this.onDone, this.tooltip});
+
+  final ValueChanged<double> onDelta;
+  final VoidCallback onDone;
+  final String? tooltip;
+
+  @override
+  State<DragDivider> createState() => _DragDividerState();
+}
+
+class _DragDividerState extends State<DragDivider> {
+  bool _active = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final bar = SizedBox(
+      width: 7, // thin line, but a comfortable grab area
+      child: Center(
+        child: Container(width: _active ? 3 : 1, color: _active ? scheme.primary : scheme.outlineVariant),
+      ),
+    );
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeColumn,
+      onEnter: (_) => setState(() => _active = true),
+      onExit: (_) => setState(() => _active = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragUpdate: (d) => widget.onDelta(d.delta.dx),
+        onHorizontalDragEnd: (_) => widget.onDone(),
+        child: widget.tooltip == null ? bar : Tooltip(message: widget.tooltip!, child: bar),
+      ),
+    );
+  }
+}
+
 Color statusColor(CourseStatus s, ColorScheme scheme) => switch (s) {
   CourseStatus.todo => scheme.outline,
   CourseStatus.learning => Colors.amber.shade700,

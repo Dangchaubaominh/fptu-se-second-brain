@@ -61,6 +61,11 @@ class _AppShellState extends ConsumerState<AppShell> {
             ref.read(pageProvider.notifier).set(AppPage.search),
         const SingleActivator(LogicalKeyboardKey.keyG, control: true): () =>
             ref.read(pageProvider.notifier).set(AppPage.graph),
+        // Collapse the notes page columns; handled here because the focus lives in this shell.
+        const SingleActivator(LogicalKeyboardKey.keyB, control: true): () =>
+            ref.read(notesLayoutProvider.notifier).toggleTree(),
+        const SingleActivator(LogicalKeyboardKey.keyB, control: true, shift: true): () =>
+            ref.read(notesLayoutProvider.notifier).toggleSide(),
         const SingleActivator(LogicalKeyboardKey.keyO, control: true): () => showQuickSwitcher(context, ref),
       },
       child: Focus(

@@ -19,11 +19,7 @@ class NoteConflictException implements Exception {
 }
 
 class TrashedNote {
-  const TrashedNote({
-    required this.trashPath,
-    required this.originalPath,
-    required this.deletedAt,
-  });
+  const TrashedNote({required this.trashPath, required this.originalPath, required this.deletedAt});
 
   final String trashPath;
   final String originalPath;
@@ -40,25 +36,15 @@ class VaultRepository {
   static const appDir = '.fptu';
 
   String abs(String rel) => p.joinAll([root, ...rel.split('/')]);
-  String rel(String absPath) =>
-      p.relative(absPath, from: root).replaceAll('\\', '/');
+  String rel(String absPath) => p.relative(absPath, from: root).replaceAll('\\', '/');
 
   static bool isNotePath(String relPath) =>
-      relPath.toLowerCase().endsWith('.md') &&
-      !relPath.split('/').any((s) => s.startsWith('.'));
+      relPath.toLowerCase().endsWith('.md') && !relPath.split('/').any((s) => s.startsWith('.'));
 
-  static const imageExtensions = {
-    '.png',
-    '.jpg',
-    '.jpeg',
-    '.gif',
-    '.webp',
-    '.bmp',
-  };
+  static const imageExtensions = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'};
 
   static bool isAttachmentPath(String relPath) =>
-      imageExtensions.contains(p.extension(relPath).toLowerCase()) &&
-      !relPath.split('/').any((s) => s.startsWith('.'));
+      imageExtensions.contains(p.extension(relPath).toLowerCase()) && !relPath.split('/').any((s) => s.startsWith('.'));
 
   /// Scans the vault once for notes and embeddable images.
   Future<VaultIndex> loadIndex() async {
@@ -81,8 +67,7 @@ class VaultRepository {
     return VaultIndex(root, notes, attachments: attachments);
   }
 
-  Future<List<Note>> loadAll() async =>
-      (await loadIndex()).notes.values.toList();
+  Future<List<Note>> loadAll() async => (await loadIndex()).notes.values.toList();
 
   /// Renames/moves a file inside the vault. Fails if the target exists.
   Future<void> renameFile(String fromRel, String toRel) async {
@@ -96,13 +81,8 @@ class VaultRepository {
 
   /// Copies an image from anywhere on disk into `attachments/` (unique name)
   /// and returns its vault-relative path.
-  Future<String> importAttachment(
-    String sourcePath, {
-    String folder = 'attachments',
-  }) async {
-    final base = p
-        .basenameWithoutExtension(sourcePath)
-        .replaceAll(RegExp(r'[\\/:*?"<>|#^\[\]]'), '-');
+  Future<String> importAttachment(String sourcePath, {String folder = 'attachments'}) async {
+    final base = p.basenameWithoutExtension(sourcePath).replaceAll(RegExp(r'[\\/:*?"<>|#^\[\]]'), '-');
     final ext = p.extension(sourcePath).toLowerCase();
     var name = '$base$ext';
     for (var i = 1; await File(abs('$folder/$name')).exists(); i++) {
@@ -127,11 +107,7 @@ class VaultRepository {
     }
   }
 
-  Future<Note> writeNote(
-    String relPath,
-    String content, {
-    String? expectedContent,
-  }) async {
+  Future<Note> writeNote(String relPath, String content, {String? expectedContent}) async {
     final f = File(abs(relPath));
     await f.parent.create(recursive: true);
     if (expectedContent != null && await f.exists()) {
@@ -145,11 +121,7 @@ class VaultRepository {
   }
 
   /// Creates a new note with a unique name inside [folder].
-  Future<Note> createNote(
-    String folder,
-    String title, {
-    String content = '',
-  }) async {
+  Future<Note> createNote(String folder, String title, {String content = ''}) async {
     final safe = title.replaceAll(RegExp(r'[\\/:*?"<>|#^\[\]]'), '-').trim();
     final base = safe.isEmpty ? 'Ghi chú mới' : safe;
     var name = base;
@@ -166,9 +138,7 @@ class VaultRepository {
   Future<void> trashNote(String relPath) async {
     final src = File(abs(relPath));
     final stamp = DateTime.now().millisecondsSinceEpoch.toString();
-    final dest = File(
-      p.joinAll([root, '.trash', stamp, ...relPath.split('/')]),
-    );
+    final dest = File(p.joinAll([root, '.trash', stamp, ...relPath.split('/')]));
     await dest.parent.create(recursive: true);
     await src.rename(dest.path);
   }
@@ -177,28 +147,19 @@ class VaultRepository {
     final trash = Directory(p.join(root, '.trash'));
     if (!await trash.exists()) return [];
     final result = <TrashedNote>[];
-    await for (final entity in trash.list(
-      recursive: true,
-      followLinks: false,
-    )) {
+    await for (final entity in trash.list(recursive: true, followLinks: false)) {
       if (entity is! File || p.extension(entity.path).toLowerCase() != '.md') {
         continue;
       }
-      final relative = p
-          .relative(entity.path, from: trash.path)
-          .replaceAll('\\', '/');
+      final relative = p.relative(entity.path, from: trash.path).replaceAll('\\', '/');
       final parts = relative.split('/');
       final stamp = parts.length > 1 ? int.tryParse(parts.first) : null;
-      final original = parts.length > 1 && stamp != null
-          ? parts.skip(1).join('/')
-          : p.basename(entity.path);
+      final original = parts.length > 1 && stamp != null ? parts.skip(1).join('/') : p.basename(entity.path);
       result.add(
         TrashedNote(
           trashPath: relative,
           originalPath: original,
-          deletedAt: stamp == null
-              ? await entity.lastModified()
-              : DateTime.fromMillisecondsSinceEpoch(stamp),
+          deletedAt: stamp == null ? await entity.lastModified() : DateTime.fromMillisecondsSinceEpoch(stamp),
         ),
       );
     }
@@ -209,14 +170,9 @@ class VaultRepository {
   /// Restores a trashed note. A numeric suffix is added when the original path
   /// is already occupied, so restoring never overwrites a current note.
   Future<Note> restoreTrash(TrashedNote entry) async {
-    final src = File(
-      p.joinAll([root, '.trash', ...entry.trashPath.split('/')]),
-    );
+    final src = File(p.joinAll([root, '.trash', ...entry.trashPath.split('/')]));
     if (!await src.exists()) {
-      throw FileSystemException(
-        'Không tìm thấy ghi chú trong thùng rác',
-        src.path,
-      );
+      throw FileSystemException('Không tìm thấy ghi chú trong thùng rác', src.path);
     }
     var targetPath = entry.originalPath;
     final ext = p.extension(targetPath);
@@ -236,12 +192,9 @@ class VaultRepository {
 
   Future<Map<String, CardState>> loadSrs() async {
     try {
-      final j =
-          jsonDecode(await _srsFile.readAsString()) as Map<String, dynamic>;
+      final j = jsonDecode(await _srsFile.readAsString()) as Map<String, dynamic>;
       final cards = j['cards'] as Map<String, dynamic>? ?? {};
-      return cards.map(
-        (k, v) => MapEntry(k, CardState.fromJson(v as Map<String, dynamic>)),
-      );
+      return cards.map((k, v) => MapEntry(k, CardState.fromJson(v as Map<String, dynamic>)));
     } on FileSystemException {
       return {};
     } on FormatException {
@@ -253,12 +206,8 @@ class VaultRepository {
 
   Future<List<ReviewEntry>> loadReviewLog() async {
     try {
-      final j =
-          jsonDecode(await _logFile.readAsString()) as Map<String, dynamic>;
-      return (j['reviews'] as List? ?? const [])
-          .map(ReviewEntry.fromJson)
-          .whereType<ReviewEntry>()
-          .toList();
+      final j = jsonDecode(await _logFile.readAsString()) as Map<String, dynamic>;
+      return (j['reviews'] as List? ?? const []).map(ReviewEntry.fromJson).whereType<ReviewEntry>().toList();
     } on FileSystemException {
       return [];
     } on FormatException {
@@ -282,10 +231,7 @@ class VaultRepository {
     const encoder = JsonEncoder.withIndent('  ');
     await _atomicWrite(
       _srsFile,
-      encoder.convert({
-        'version': 1,
-        'cards': states.map((k, v) => MapEntry(k, v.toJson())),
-      }),
+      encoder.convert({'version': 1, 'cards': states.map((k, v) => MapEntry(k, v.toJson()))}),
     );
   }
 

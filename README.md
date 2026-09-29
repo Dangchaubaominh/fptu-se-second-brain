@@ -75,6 +75,7 @@ Key chỉ lưu trên máy của bạn, không ghi vào vault. Cũng có thể đ
 
 ### 4. Viết ghi chú
 
+- **Bố cục:** thu gọn cây thư mục bằng **Ctrl+B** (hoặc nút ☰ trên thanh công cụ) và bảng Liên kết & AI bằng **Ctrl+Shift+B**. Kéo đường viền giữa các cột để đổi độ rộng. App nhớ trạng thái này cho lần mở sau.
 - Trang **Ghi chú**: chọn note ở cây thư mục bên trái. Chuyển chế độ **Soạn / Chia đôi / Xem** bằng nút trên thanh công cụ. App tự lưu sau 0,7 giây, hoặc nhấn **Ctrl+S**.
 - **Liên kết:** gõ `[[` để hiện gợi ý, dùng ↑↓ chọn rồi **Enter**. Gõ tên chưa có note cũng được, bấm vào link đó sẽ tạo note mới.
 - **Ảnh:** bấm nút **Chèn ảnh** trên thanh công cụ và chọn file. Ảnh được chép vào `attachments/`. Viết `![[ảnh.png|300]]` để đặt độ rộng 300px.
@@ -192,6 +193,8 @@ Nên khởi tạo TextEditingController ở đâu?::initState()
 | Phím | Chức năng |
 |---|---|
 | Ctrl+O | Quick switcher: mở nhanh / tạo note |
+| Ctrl+B | Thu gọn / hiện cây thư mục |
+| Ctrl+Shift+B | Thu gọn / hiện bảng Liên kết & AI |
 | Ctrl+K | Tìm kiếm |
 | Ctrl+G | Graph view |
 | Ctrl+S | Lưu note (app cũng tự lưu) |

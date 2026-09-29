@@ -36,7 +36,6 @@ class _NotesPageState extends ConsumerState<NotesPage> {
   bool _hasExternalChange = false;
   Timer? _saveTimer;
   _Mode _mode = _Mode.split;
-  bool _showSide = true;
 
   @override
   void initState() {
@@ -54,9 +53,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
 
   void _load(String? path) {
     _path = path;
-    _baseContent = path == null
-        ? ''
-        : ref.read(vaultProvider).value?.notes[path]?.content ?? '';
+    _baseContent = path == null ? '' : ref.read(vaultProvider).value?.notes[path]?.content ?? '';
     _ctrl.text = _baseContent;
     _dirty = false;
     _hasExternalChange = false;
@@ -78,9 +75,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
     _saving = true;
     if (mounted) setState(() {});
     try {
-      await ref
-          .read(vaultProvider.notifier)
-          .save(path, content, expectedContent: expectedContent);
+      await ref.read(vaultProvider.notifier).save(path, content, expectedContent: expectedContent);
       _baseContent = content;
       _hasExternalChange = false;
       _dirty = _ctrl.text != content;
@@ -92,8 +87,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
     } catch (e) {
       _dirty = true;
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Lưu thất bại: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lưu thất bại: $e')));
       }
     }
     _saving = false;
@@ -101,10 +95,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
     return saved;
   }
 
-  Future<bool> _resolveConflict(
-    NoteConflictException conflict,
-    String localContent,
-  ) async {
+  Future<bool> _resolveConflict(NoteConflictException conflict, String localContent) async {
     final choice = await showDialog<_ConflictChoice>(
       context: context,
       barrierDismissible: false,
@@ -140,13 +131,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
     }
     if (choice == _ConflictChoice.overwrite) {
       try {
-        await ref
-            .read(vaultProvider.notifier)
-            .save(
-              conflict.path,
-              localContent,
-              expectedContent: conflict.diskContent,
-            );
+        await ref.read(vaultProvider.notifier).save(conflict.path, localContent, expectedContent: conflict.diskContent);
         _baseContent = localContent;
         _dirty = _ctrl.text != localContent;
         _hasExternalChange = false;
@@ -172,26 +157,16 @@ class _NotesPageState extends ConsumerState<NotesPage> {
     final title = await _askText(context, 'Ghi chú mới', 'Tên ghi chú');
     if (title == null || title.isEmpty) return;
     if (!await _save()) return;
-    final folder = _path == null
-        ? ''
-        : ref.read(vaultProvider).value?.notes[_path]?.folder ?? '';
+    final folder = _path == null ? '' : ref.read(vaultProvider).value?.notes[_path]?.folder ?? '';
     final note = await ref.read(vaultProvider.notifier).create(folder, title);
     ref.read(selectedNoteProvider.notifier).set(note.path);
   }
 
   Future<void> _rename() async {
     final path = _path;
-    final note = path == null
-        ? null
-        : ref.read(vaultProvider).value?.notes[path];
+    final note = path == null ? null : ref.read(vaultProvider).value?.notes[path];
     if (note == null) return;
-    final title = await _askText(
-      context,
-      'Đổi tên ghi chú',
-      'Tên mới',
-      initial: note.title,
-      action: 'Đổi tên',
-    );
+    final title = await _askText(context, 'Đổi tên ghi chú', 'Tên mới', initial: note.title, action: 'Đổi tên');
     if (title == null || title.isEmpty || title == note.title) return;
     // Flush pending edits to the old path before the file moves.
     if (!await _save()) return;
@@ -211,17 +186,13 @@ class _NotesPageState extends ConsumerState<NotesPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Không đổi tên được: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Không đổi tên được: $e')));
       }
     }
   }
 
   Future<void> _insertImage() async {
-    final file = await FilePicker.pickFile(
-      dialogTitle: 'Chọn ảnh để chèn',
-      type: FileType.image,
-    );
+    final file = await FilePicker.pickFile(dialogTitle: 'Chọn ảnh để chèn', type: FileType.image);
     final source = file?.path;
     if (source == null) return;
     final notifier = ref.read(vaultProvider.notifier);
@@ -248,18 +219,10 @@ class _NotesPageState extends ConsumerState<NotesPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Chuyển vào thùng rác?'),
-        content: Text(
-          '"$path" sẽ được chuyển vào thư mục .trash của vault (có thể khôi phục thủ công).',
-        ),
+        content: Text('"$path" sẽ được chuyển vào thư mục .trash của vault (có thể khôi phục thủ công).'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Chuyển'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Chuyển')),
         ],
       ),
     );
@@ -286,10 +249,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
         _baseContent = note.content;
         _hasExternalChange = false;
         if (sel.end <= note.content.length) _ctrl.selection = sel;
-      } else if (note != null &&
-          _dirty &&
-          note.content != _baseContent &&
-          !_hasExternalChange) {
+      } else if (note != null && _dirty && note.content != _baseContent && !_hasExternalChange) {
         setState(() => _hasExternalChange = true);
       }
     });
@@ -297,21 +257,42 @@ class _NotesPageState extends ConsumerState<NotesPage> {
     final index = ref.watch(vaultProvider).value;
     if (index == null) return const SizedBox();
     final note = _path == null ? null : index.notes[_path];
-    // Narrow windows: slimmer file tree and side panel so the editor keeps enough room.
-    final compact = MediaQuery.sizeOf(context).width < 1300;
+    final layout = ref.watch(notesLayoutProvider);
+    final layoutNotifier = ref.read(notesLayoutProvider.notifier);
+    // Keep at least this much room for the editor, whatever the saved widths are.
+    const minEditor = 460.0;
+    final available = MediaQuery.sizeOf(context).width - 80; // minus the navigation rail
+    final showSide = note != null && layout.showSide;
+    var treeWidth = layout.showTree ? layout.treeWidth : 0.0;
+    var sideWidth = showSide ? layout.sideWidth : 0.0;
+    if (treeWidth + sideWidth + minEditor > available) {
+      final over = treeWidth + sideWidth + minEditor - available;
+      sideWidth = (sideWidth - over).clamp(0.0, sideWidth);
+      final stillOver = treeWidth + sideWidth + minEditor - available;
+      if (stillOver > 0) treeWidth = (treeWidth - stillOver).clamp(0.0, treeWidth);
+    }
 
+    // Ctrl+B / Ctrl+Shift+B are registered in the app shell, where the keyboard focus lives.
     return Row(
       children: [
-        SizedBox(
-          width: compact ? 220 : 260,
-          child: _FileTree(
-            index: index,
-            selected: _path,
-            onNew: _newNote,
-            onShowTrash: () => _showTrash(context, ref),
+        if (layout.showTree) ...[
+          SizedBox(
+            width: treeWidth,
+            child: _FileTree(
+              index: index,
+              selected: _path,
+              onNew: _newNote,
+              onShowTrash: () => _showTrash(context, ref),
+              onCollapse: layoutNotifier.toggleTree,
+            ),
           ),
-        ),
-        const VerticalDivider(),
+          DragDivider(
+            tooltip: 'Kéo để đổi độ rộng',
+            onDelta: (dx) => layoutNotifier.resize(treeWidth: layout.treeWidth + dx),
+            onDone: layoutNotifier.save,
+          ),
+        ] else
+          const VerticalDivider(),
         Expanded(
           child: note == null
               ? EmptyState(
@@ -325,12 +306,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                   ),
                 )
               : CallbackShortcuts(
-                  bindings: {
-                    const SingleActivator(
-                      LogicalKeyboardKey.keyS,
-                      control: true,
-                    ): _save,
-                  },
+                  bindings: {const SingleActivator(LogicalKeyboardKey.keyS, control: true): _save},
                   child: Column(
                     children: [
                       _EditorToolbar(
@@ -341,10 +317,11 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                             : (_hasExternalChange
                                   ? 'Xung đột với thay đổi bên ngoài'
                                   : (_dirty ? 'Chưa lưu' : 'Đã lưu')),
-                        showSide: _showSide,
+                        showSide: layout.showSide,
+                        showTree: layout.showTree,
                         onMode: (m) => setState(() => _mode = m),
-                        onToggleSide: () =>
-                            setState(() => _showSide = !_showSide),
+                        onToggleSide: layoutNotifier.toggleSide,
+                        onToggleTree: layoutNotifier.toggleTree,
                         onTrash: _trash,
                         onRename: _rename,
                         onInsertImage: _insertImage,
@@ -355,10 +332,14 @@ class _NotesPageState extends ConsumerState<NotesPage> {
                   ),
                 ),
         ),
-        if (note != null && _showSide) ...[
-          const VerticalDivider(),
+        if (showSide) ...[
+          DragDivider(
+            tooltip: 'Kéo để đổi độ rộng',
+            onDelta: (dx) => layoutNotifier.resize(sideWidth: layout.sideWidth - dx),
+            onDone: layoutNotifier.save,
+          ),
           SizedBox(
-            width: compact ? 300 : 360,
+            width: sideWidth,
             child: _SidePanel(
               note: note,
               index: index,
@@ -373,12 +354,7 @@ class _NotesPageState extends ConsumerState<NotesPage> {
   }
 
   Widget _buildEditorArea(VaultIndex index) {
-    final editor = MarkdownEditor(
-      controller: _ctrl,
-      onChanged: _onChanged,
-      index: index,
-      currentPath: _path,
-    );
+    final editor = MarkdownEditor(controller: _ctrl, onChanged: _onChanged, index: index, currentPath: _path);
     final preview = ValueListenableBuilder(
       valueListenable: _ctrl,
       builder: (_, v, _) => NotePreview(content: v.text, notePath: _path),
@@ -420,14 +396,8 @@ Future<String?> _askText(
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('Hủy'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(ctx, c.text.trim()),
-          child: Text(action),
-        ),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, c.text.trim()), child: Text(action)),
       ],
     ),
   );
@@ -439,8 +409,10 @@ class _EditorToolbar extends StatelessWidget {
     required this.mode,
     required this.status,
     required this.showSide,
+    required this.showTree,
     required this.onMode,
     required this.onToggleSide,
+    required this.onToggleTree,
     required this.onTrash,
     required this.onRename,
     required this.onInsertImage,
@@ -449,8 +421,10 @@ class _EditorToolbar extends StatelessWidget {
   final _Mode mode;
   final String status;
   final bool showSide;
+  final bool showTree;
   final ValueChanged<_Mode> onMode;
   final VoidCallback onToggleSide;
+  final VoidCallback onToggleTree;
   final VoidCallback onTrash;
   final VoidCallback onRename;
   final VoidCallback onInsertImage;
@@ -459,25 +433,27 @@ class _EditorToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 10, 12, 10),
+      padding: const EdgeInsets.fromLTRB(8, 10, 12, 10),
       child: Row(
         children: [
+          IconButton(
+            tooltip: showTree ? 'Thu gọn cây thư mục (Ctrl+B)' : 'Hiện cây thư mục (Ctrl+B)',
+            onPressed: onToggleTree,
+            icon: Icon(showTree ? Icons.menu_open : Icons.menu),
+          ),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   note.title,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   '${note.path} · $status',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -485,21 +461,9 @@ class _EditorToolbar extends StatelessWidget {
           SegmentedButton<_Mode>(
             showSelectedIcon: false,
             segments: const [
-              ButtonSegment(
-                value: _Mode.edit,
-                icon: Icon(Icons.edit_note),
-                tooltip: 'Soạn thảo',
-              ),
-              ButtonSegment(
-                value: _Mode.split,
-                icon: Icon(Icons.vertical_split),
-                tooltip: 'Chia đôi',
-              ),
-              ButtonSegment(
-                value: _Mode.preview,
-                icon: Icon(Icons.visibility_outlined),
-                tooltip: 'Xem',
-              ),
+              ButtonSegment(value: _Mode.edit, icon: Icon(Icons.edit_note), tooltip: 'Soạn thảo'),
+              ButtonSegment(value: _Mode.split, icon: Icon(Icons.vertical_split), tooltip: 'Chia đôi'),
+              ButtonSegment(value: _Mode.preview, icon: Icon(Icons.visibility_outlined), tooltip: 'Xem'),
             ],
             selected: {mode},
             onSelectionChanged: (s) => onMode(s.first),
@@ -516,26 +480,18 @@ class _EditorToolbar extends StatelessWidget {
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: onRename,
-                child: const ListTile(
-                  leading: Icon(Icons.drive_file_rename_outline),
-                  title: Text('Đổi tên'),
-                ),
+                child: const ListTile(leading: Icon(Icons.drive_file_rename_outline), title: Text('Đổi tên')),
               ),
               PopupMenuItem(
                 value: onTrash,
-                child: const ListTile(
-                  leading: Icon(Icons.delete_outline),
-                  title: Text('Chuyển vào thùng rác'),
-                ),
+                child: const ListTile(leading: Icon(Icons.delete_outline), title: Text('Chuyển vào thùng rác')),
               ),
             ],
           ),
           IconButton(
-            tooltip: showSide ? 'Ẩn bảng bên' : 'Hiện liên kết & AI',
+            tooltip: showSide ? 'Thu gọn bảng bên (Ctrl+Shift+B)' : 'Hiện liên kết & AI (Ctrl+Shift+B)',
             onPressed: onToggleSide,
-            icon: Icon(
-              showSide ? Icons.view_sidebar : Icons.view_sidebar_outlined,
-            ),
+            icon: Icon(showSide ? Icons.view_sidebar : Icons.view_sidebar_outlined),
           ),
         ],
       ),
@@ -554,11 +510,13 @@ class _FileTree extends ConsumerStatefulWidget {
     required this.selected,
     required this.onNew,
     required this.onShowTrash,
+    required this.onCollapse,
   });
   final VaultIndex index;
   final String? selected;
   final VoidCallback onNew;
   final VoidCallback onShowTrash;
+  final VoidCallback onCollapse;
 
   @override
   ConsumerState<_FileTree> createState() => _FileTreeState();
@@ -584,40 +542,41 @@ class _FileTreeState extends ConsumerState<_FileTree> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 4, 8),
+          padding: const EdgeInsets.fromLTRB(8, 12, 4, 8),
           child: Row(
             children: [
+              IconButton(
+                tooltip: 'Thu gọn cây thư mục (Ctrl+B)',
+                onPressed: widget.onCollapse,
+                icon: const Icon(Icons.menu_open),
+              ),
+              // Filter can get narrow when the column is dragged in; keep it flexible.
               Expanded(
                 child: TextField(
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.filter_list, size: 18),
-                    hintText: 'Lọc file…',
-                  ),
+                  decoration: const InputDecoration(prefixIcon: Icon(Icons.filter_list, size: 18), hintText: 'Lọc…'),
                   onChanged: (v) => setState(() => _filter = v),
                 ),
               ),
-              IconButton(
-                tooltip: 'Mở nhanh (Ctrl+O)',
-                onPressed: () => showQuickSwitcher(context, ref),
-                icon: const Icon(Icons.manage_search),
-              ),
-              IconButton(
-                tooltip: 'Thùng rác',
-                onPressed: widget.onShowTrash,
-                icon: const Icon(Icons.restore_from_trash),
-              ),
-              IconButton(
-                tooltip: 'Ghi chú mới',
-                onPressed: widget.onNew,
-                icon: const Icon(Icons.note_add_outlined),
+              IconButton(tooltip: 'Ghi chú mới', onPressed: widget.onNew, icon: const Icon(Icons.note_add_outlined)),
+              PopupMenuButton<VoidCallback>(
+                tooltip: 'Thêm',
+                onSelected: (action) => action(),
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: () => showQuickSwitcher(context, ref),
+                    child: const ListTile(leading: Icon(Icons.manage_search), title: Text('Mở nhanh (Ctrl+O)')),
+                  ),
+                  PopupMenuItem(
+                    value: widget.onShowTrash,
+                    child: const ListTile(leading: Icon(Icons.restore_from_trash), title: Text('Thùng rác')),
+                  ),
+                ],
               ),
             ],
           ),
         ),
         Expanded(
-          child: ListView(
-            children: _buildDir(root, 0, expandAll: f.isNotEmpty),
-          ),
+          child: ListView(children: _buildDir(root, 0, expandAll: f.isNotEmpty)),
         ),
       ],
     );
@@ -626,15 +585,13 @@ class _FileTreeState extends ConsumerState<_FileTree> {
   List<Widget> _buildDir(_Dir d, int depth, {required bool expandAll}) {
     final theme = Theme.of(context);
     final names = d.dirs.keys.toList()..sort();
-    final notes = d.notes
-      ..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    final notes = d.notes..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
     return [
       for (final name in names)
         ExpansionTile(
           key: PageStorageKey('dir:$depth/$name/$expandAll'),
           dense: true,
-          initiallyExpanded:
-              expandAll || (widget.selected?.startsWith('$name/') ?? false),
+          initiallyExpanded: expandAll || (widget.selected?.startsWith('$name/') ?? false),
           tilePadding: EdgeInsets.only(left: 12.0 + depth * 12, right: 8),
           childrenPadding: EdgeInsets.zero,
           shape: const Border(),
@@ -648,13 +605,8 @@ class _FileTreeState extends ConsumerState<_FileTree> {
           visualDensity: const VisualDensity(vertical: -3),
           contentPadding: EdgeInsets.only(left: 20.0 + depth * 12, right: 8),
           selected: n.path == widget.selected,
-          selectedTileColor: theme.colorScheme.primaryContainer.withValues(
-            alpha: 0.5,
-          ),
-          leading: Icon(
-            n.isCourse ? Icons.school_outlined : Icons.description_outlined,
-            size: 16,
-          ),
+          selectedTileColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+          leading: Icon(n.isCourse ? Icons.school_outlined : Icons.description_outlined, size: 16),
           minLeadingWidth: 16,
           title: Text(n.title, maxLines: 1, overflow: TextOverflow.ellipsis),
           onTap: () => ref.read(selectedNoteProvider.notifier).set(n.path),
@@ -663,10 +615,7 @@ class _FileTreeState extends ConsumerState<_FileTree> {
   }
 }
 
-Future<void> _showTrash(
-  BuildContext context,
-  WidgetRef ref,
-) => showDialog<void>(
+Future<void> _showTrash(BuildContext context, WidgetRef ref) => showDialog<void>(
   context: context,
   builder: (dialogContext) => Consumer(
     builder: (context, dialogRef, _) {
@@ -678,8 +627,7 @@ Future<void> _showTrash(
           height: 420,
           child: trash.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, _) =>
-                Center(child: Text('Không đọc được thùng rác: $error')),
+            error: (error, _) => Center(child: Text('Không đọc được thùng rác: $error')),
             data: (entries) => entries.isEmpty
                 ? const EmptyState(
                     icon: Icons.delete_outline,
@@ -693,39 +641,23 @@ Future<void> _showTrash(
                       final entry = entries[i];
                       return ListTile(
                         leading: const Icon(Icons.description_outlined),
-                        title: Text(
-                          p.posix.basenameWithoutExtension(entry.originalPath),
-                        ),
-                        subtitle: Text(
-                          '${entry.originalPath} · ${relativeTime(entry.deletedAt)}',
-                        ),
+                        title: Text(p.posix.basenameWithoutExtension(entry.originalPath)),
+                        subtitle: Text('${entry.originalPath} · ${relativeTime(entry.deletedAt)}'),
                         trailing: IconButton(
                           tooltip: 'Khôi phục',
                           icon: const Icon(Icons.restore),
                           onPressed: () async {
                             try {
-                              final note = await dialogRef
-                                  .read(vaultProvider.notifier)
-                                  .restoreTrash(entry);
-                              dialogRef
-                                  .read(selectedNoteProvider.notifier)
-                                  .set(note.path);
+                              final note = await dialogRef.read(vaultProvider.notifier).restoreTrash(entry);
+                              dialogRef.read(selectedNoteProvider.notifier).set(note.path);
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Đã khôi phục ${note.path}'),
-                                  ),
-                                );
+                                ScaffoldMessenger.of(context)
+                                    .showSnackBar(SnackBar(content: Text('Đã khôi phục ${note.path}')));
                               }
                             } catch (error) {
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Không khôi phục được: $error',
-                                    ),
-                                  ),
-                                );
+                                ScaffoldMessenger.of(context)
+                                    .showSnackBar(SnackBar(content: Text('Không khôi phục được: $error')));
                               }
                             }
                           },
@@ -735,23 +667,14 @@ Future<void> _showTrash(
                   ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Đóng'),
-          ),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Đóng'))],
       );
     },
   ),
 );
 
 class _SidePanel extends StatelessWidget {
-  const _SidePanel({
-    required this.note,
-    required this.index,
-    required this.onBeforeAiWrite,
-  });
+  const _SidePanel({required this.note, required this.index, required this.onBeforeAiWrite});
   final Note note;
   final VaultIndex index;
   final Future<void> Function() onBeforeAiWrite;
@@ -764,22 +687,14 @@ class _SidePanel extends StatelessWidget {
         const TabBar(
           tabs: [
             Tab(icon: Icon(Icons.link, size: 18), text: 'Liên kết', height: 52),
-            Tab(
-              icon: Icon(Icons.auto_awesome, size: 18),
-              text: 'Trợ lý AI',
-              height: 52,
-            ),
+            Tab(icon: Icon(Icons.auto_awesome, size: 18), text: 'Trợ lý AI', height: 52),
           ],
         ),
         Expanded(
           child: TabBarView(
             children: [
               _LinksPanel(note: note, index: index),
-              AiPanel(
-                key: ValueKey(note.path),
-                notePath: note.path,
-                onBeforeWrite: onBeforeAiWrite,
-              ),
+              AiPanel(key: ValueKey(note.path), notePath: note.path, onBeforeWrite: onBeforeAiWrite),
             ],
           ),
         ),
@@ -796,25 +711,15 @@ class _LinksPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final backlinks =
-        (index.backlinks[note.path] ?? const <String>{})
-            .map((p) => index.notes[p]!)
-            .toList()
-          ..sort((a, b) => a.title.compareTo(b.title));
+    final backlinks = (index.backlinks[note.path] ?? const <String>{}).map((p) => index.notes[p]!).toList()
+      ..sort((a, b) => a.title.compareTo(b.title));
     final seen = <String>{};
-    final outgoing = note.links
-        .where((l) => seen.add(l.target.toLowerCase()))
-        .toList();
+    final outgoing = note.links.where((l) => seen.add(l.target.toLowerCase())).toList();
     final cards = parseFlashcards(note);
 
     Widget header(String text, int count) => Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Text(
-        '$text ($count)',
-        style: theme.textTheme.labelLarge?.copyWith(
-          color: theme.colorScheme.primary,
-        ),
-      ),
+      child: Text('$text ($count)', style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary)),
     );
 
     return ListView(
@@ -830,11 +735,7 @@ class _LinksPanel extends ConsumerWidget {
             dense: true,
             leading: const Icon(Icons.subdirectory_arrow_left, size: 18),
             title: Text(b.title),
-            subtitle: Text(
-              _contextLine(b, note),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+            subtitle: Text(_contextLine(b, note), maxLines: 2, overflow: TextOverflow.ellipsis),
             onTap: () => openNote(ref, b.path),
           ),
         header('Liên kết đi', outgoing.length),
@@ -844,22 +745,14 @@ class _LinksPanel extends ConsumerWidget {
               final resolved = index.resolve(l.target);
               return ListTile(
                 dense: true,
-                leading: Icon(
-                  resolved == null ? Icons.add_link : Icons.arrow_outward,
-                  size: 18,
-                ),
+                leading: Icon(resolved == null ? Icons.add_link : Icons.arrow_outward, size: 18),
                 title: Text(
                   l.target,
                   style: resolved == null
-                      ? TextStyle(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontStyle: FontStyle.italic,
-                        )
+                      ? TextStyle(color: theme.colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic)
                       : null,
                 ),
-                subtitle: resolved == null
-                    ? const Text('Chưa có note – bấm để tạo')
-                    : null,
+                subtitle: resolved == null ? const Text('Chưa có note – bấm để tạo') : null,
                 onTap: () => followWikilink(ref, l.target),
               );
             },
@@ -871,31 +764,19 @@ class _LinksPanel extends ConsumerWidget {
             spacing: 6,
             runSpacing: 6,
             children: [
-              for (final t in note.tags)
-                ActionChip(
-                  label: Text('#$t'),
-                  onPressed: () => openSearch(ref, '#$t'),
-                ),
+              for (final t in note.tags) ActionChip(label: Text('#$t'), onPressed: () => openSearch(ref, '#$t')),
             ],
           ),
         ),
         header('Flashcards trong note', cards.length),
-        for (final c in cards)
-          ListTile(
-            dense: true,
-            title: Text(c.question),
-            subtitle: Text(c.answer),
-          ),
+        for (final c in cards) ListTile(dense: true, title: Text(c.question), subtitle: Text(c.answer)),
         const SizedBox(height: 16),
       ],
     );
   }
 
   static String _contextLine(Note from, Note to) {
-    final names = {
-      to.title.toLowerCase(),
-      ...to.aliases.map((a) => a.toLowerCase()),
-    };
+    final names = {to.title.toLowerCase(), ...to.aliases.map((a) => a.toLowerCase())};
     for (final line in from.body.split('\n')) {
       final lower = line.toLowerCase();
       if (names.any((n) => lower.contains('[[$n'))) return line.trim();

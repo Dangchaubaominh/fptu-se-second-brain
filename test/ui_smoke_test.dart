@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fptu_brain/core/sample_vault.dart';
 import 'package:fptu_brain/main.dart';
 import 'package:fptu_brain/state/providers.dart';
+import 'package:fptu_brain/ui/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Builds the full app on a freshly generated sample vault.
@@ -121,5 +122,52 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.textContaining('Enter mở'), findsNothing);
     expect(container.read(selectedNoteProvider), 'Concepts/Đệ quy (Recursion).md');
+  }, timeout: const Timeout(Duration(seconds: 60)));
+
+  testWidgets('notes columns collapse, resize and are remembered', (tester) async {
+    final container = await pumpApp(tester);
+    final index = container.read(vaultProvider).value!;
+    container.read(selectedNoteProvider.notifier).set(index.resolve('Đệ quy (Recursion)')!);
+    container.read(pageProvider.notifier).set(AppPage.notes);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final treeFilter = find.widgetWithText(TextField, 'Lọc…');
+    expect(treeFilter, findsOneWidget);
+    expect(find.text('Backlinks (3)'), findsOneWidget);
+
+    // Ctrl+B hides the file tree, Ctrl+Shift+B hides the side panel.
+    await pressCtrl(tester, LogicalKeyboardKey.keyB);
+    await tester.pump();
+    expect(treeFilter, findsNothing);
+    expect(container.read(notesLayoutProvider).showTree, isFalse);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    expect(find.text('Backlinks (3)'), findsNothing);
+
+    // The toolbar button brings the tree back.
+    await tester.tap(find.byTooltip('Hiện cây thư mục (Ctrl+B)'));
+    await tester.pump();
+    expect(treeFilter, findsOneWidget);
+
+    // Dragging the divider widens the tree and the width is clamped and saved.
+    final before = container.read(notesLayoutProvider).treeWidth;
+    await tester.drag(find.byType(DragDivider).first, const Offset(80, 0));
+    await tester.pump();
+    // The gesture recogniser swallows the drag slop, so the width grows by a bit less than 80.
+    expect(container.read(notesLayoutProvider).treeWidth, inExclusiveRange(before + 40, before + 81));
+    await tester.drag(find.byType(DragDivider).first, const Offset(900, 0));
+    await tester.pump();
+    expect(container.read(notesLayoutProvider).treeWidth, NotesLayout.maxTreeWidth);
+
+    final prefs = container.read(prefsProvider);
+    expect(prefs.getDouble('notes.treeWidth'), NotesLayout.maxTreeWidth);
+    expect(prefs.getBool('notes.showTree'), isTrue);
+    expect(prefs.getBool('notes.showSide'), isFalse);
   }, timeout: const Timeout(Duration(seconds: 60)));
 }
