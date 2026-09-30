@@ -6,7 +6,7 @@
 |---|---|
 | Flutter Desktop App | Windows / macOS / Linux, NavigationRail, phím tắt, dark mode, bản cài `.msix` cho Windows |
 | File handling | Quét vault, đọc/ghi `.md`, sửa frontmatter, tạo/đổi tên note (tự cập nhật link), chèn ảnh vào `attachments/`, chuyển vào `.trash/`, theo dõi thay đổi file (watcher), xuất/nhập bộ thẻ TSV/CSV, lưu lịch ôn và nhật ký trong `.fptu/` |
-| AI Integration | Claude API (`claude-opus-5`): tóm tắt note, sinh flashcard, chat về note, hỏi đáp trên toàn vault có trích nguồn, sinh đề trắc nghiệm kiểu FE (structured JSON output + prompt caching) |
+| AI Integration | Claude API (`claude-opus-5`, có structured JSON output và prompt caching) hoặc bất kỳ dịch vụ chuẩn OpenAI (Gemini, OpenRouter, Groq, OpenAI, Ollama chạy offline): tóm tắt note, sinh flashcard, chat về note, hỏi đáp trên toàn vault có trích nguồn, sinh đề trắc nghiệm kiểu FE |
 | UI/UX | Material 3, màu FPT, dashboard tiến độ, graph view tương tác, tìm kiếm không dấu, gợi ý `[[`, quick switcher, ôn tập bằng bàn phím, thống kê heatmap |
 
 ## Cài đặt
@@ -62,10 +62,25 @@ Muốn dùng song song với Obsidian: mở Obsidian → **Open folder as vault*
 
 ### 2. Bật trợ lý AI (tùy chọn)
 
-1. Tạo API key tại [console.anthropic.com](https://console.anthropic.com) (mục API Keys). Việc gọi API có tính phí theo lượng sử dụng của tài khoản Anthropic.
-2. Trong app vào **Cài đặt → Trợ lý AI (Claude)**, dán key, bấm **Lưu** rồi **Kiểm tra kết nối**.
+Vào **Cài đặt → Trợ lý AI** và chọn một trong hai:
 
-Key chỉ lưu trên máy của bạn, không ghi vào vault. Cũng có thể đặt biến môi trường `ANTHROPIC_API_KEY` thay vì nhập trong app.
+**Claude (mặc định)** — tạo API key tại [console.anthropic.com](https://console.anthropic.com), dán vào ô key. Có thể đặt biến môi trường `ANTHROPIC_API_KEY` thay vì nhập trong app.
+
+**Khác** — bất kỳ dịch vụ nào theo chuẩn OpenAI. Bấm một mục dựng sẵn rồi sửa tên model nếu cần:
+
+| Dịch vụ | Địa chỉ API | Ghi chú |
+|---|---|---|
+| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai` | Key lấy ở aistudio.google.com, có bậc miễn phí |
+| OpenRouter | `https://openrouter.ai/api/v1` | Một key nhiều model, model đuôi `:free` miễn phí |
+| Groq | `https://api.groq.com/openai/v1` | Nhanh, có bậc miễn phí |
+| OpenAI | `https://api.openai.com/v1` | Trả phí theo lượng dùng |
+| Ollama | `http://localhost:11434/v1` | Chạy trên máy bạn, **không cần key và không cần mạng** |
+
+Xong thì bấm **Lưu** rồi **Kiểm tra kết nối**; app sẽ gọi thử một câu và hiện tên model đã trả lời.
+
+Hai khác biệt khi không dùng Claude: không có **prompt caching** nên hỏi nhiều lượt trên toàn vault tốn hơn, và việc **trả về JSON** (tạo flashcard, đề trắc nghiệm) phụ thuộc vào model — model nhỏ có thể trả sai định dạng, khi đó app báo lỗi rõ và bạn thử lại hoặc đổi model.
+
+Key chỉ lưu trên máy của bạn (SharedPreferences), không ghi vào vault và không đưa lên Git.
 
 ### 3. Theo dõi môn học
 
@@ -142,7 +157,9 @@ lib/
 │  ├─ flashcards.dart          # parse Q::A, thuật toán SM-2
 │  ├─ review_stats.dart        # nhật ký ôn tập, streak, retention, dự báo
 │  ├─ deck_io.dart             # xuất TSV (Anki), nhập TSV/CSV
+│  ├─ ai_client.dart           # interface chung cho các model + xử lý lỗi, parse JSON
 │  ├─ claude_client.dart       # Claude Messages API qua HTTP (SSE streaming, JSON schema, prompt caching)
+│  ├─ openai_client.dart       # client chuẩn OpenAI: Gemini, OpenRouter, Groq, OpenAI, Ollama
 │  ├─ ai_assistant.dart        # prompt tiếng Việt: tóm tắt / flashcard / chat / hỏi vault / đề trắc nghiệm
 │  ├─ vault_ai.dart            # chọn ngữ cảnh gửi AI, mô hình câu hỏi, xuất đề ra Markdown
 │  ├─ update_checker.dart      # hỏi GitHub Releases có bản mới không

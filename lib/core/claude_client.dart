@@ -2,17 +2,12 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-class AiException implements Exception {
-  AiException(this.message);
-  final String message;
-  @override
-  String toString() => message;
-}
+import 'ai_client.dart';
 
-typedef ChatMessage = ({String role, String content});
+export 'ai_client.dart' show AiClient, AiException, ChatMessage;
 
 /// Minimal Claude Messages API client over raw HTTP (there is no official Dart SDK).
-class ClaudeClient {
+class ClaudeClient implements AiClient {
   ClaudeClient(this.apiKey, {http.Client? client}) : _http = client ?? http.Client();
 
   static const model = 'claude-opus-5';
@@ -48,8 +43,12 @@ class ClaudeClient {
     ],
   };
 
+  @override
+  String get label => 'Claude ($model)';
+
   /// Streams text deltas. Used for summaries and chat so long answers
   /// render progressively and don't hit HTTP timeouts.
+  @override
   Stream<String> streamText({
     required String system,
     required List<ChatMessage> messages,
@@ -81,6 +80,7 @@ class ClaudeClient {
   }
 
   /// Non-streaming call constrained to a JSON schema (structured outputs).
+  @override
   Future<Map<String, dynamic>> completeJson({
     required String system,
     required List<ChatMessage> messages,
@@ -111,20 +111,8 @@ class ClaudeClient {
     return jsonDecode(out) as Map<String, dynamic>;
   }
 
-  static String _describeError(int status, String body) {
-    String? apiMsg;
-    try {
-      apiMsg = ((jsonDecode(body) as Map)['error'] as Map?)?['message'] as String?;
-    } catch (_) {}
-    final hint = switch (status) {
-      401 => 'API key không hợp lệ. Kiểm tra lại trong Cài đặt.',
-      403 => 'API key không có quyền dùng model này.',
-      429 => 'Vượt giới hạn tốc độ, thử lại sau ít phút.',
-      >= 500 => 'Máy chủ Anthropic đang lỗi hoặc quá tải, thử lại sau.',
-      _ => 'Yêu cầu không hợp lệ.',
-    };
-    return '$hint (HTTP $status${apiMsg != null ? ': $apiMsg' : ''})';
-  }
+  static String _describeError(int status, String body) => describeHttpError(status, body, 'Anthropic');
 
+  @override
   void close() => _http.close();
 }

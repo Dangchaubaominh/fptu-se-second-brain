@@ -107,7 +107,7 @@ class _AiPanelState extends ConsumerState<AiPanel> with AutomaticKeepAliveClient
     _chat.add((role: 'user', content: text));
     final history = List<ChatMessage>.of(_chat);
     _chat.add((role: 'assistant', content: ''));
-    _run('Claude đang trả lời…', ai.chat(note, index!, history), (c) {
+    _run('AI đang trả lời…', ai.chat(note, index!, history), (c) {
       final last = _chat.removeLast();
       _chat.add((role: 'assistant', content: last.content + c));
     });
@@ -134,8 +134,8 @@ class _AiPanelState extends ConsumerState<AiPanel> with AutomaticKeepAliveClient
     if (ai == null) {
       return EmptyState(
         icon: Icons.key_outlined,
-        title: 'Chưa có Claude API key',
-        message: 'Nhập API key trong Cài đặt (hoặc đặt biến môi trường ANTHROPIC_API_KEY) để dùng trợ lý AI.',
+        title: 'Chưa thiết lập trợ lý AI',
+        message: 'Chọn nhà cung cấp và nhập API key trong Cài đặt để dùng trợ lý AI.',
         action: FilledButton(
           onPressed: () => ref.read(pageProvider.notifier).set(AppPage.settings),
           child: const Text('Mở Cài đặt'),
@@ -269,7 +269,7 @@ class _AiPanelState extends ConsumerState<AiPanel> with AutomaticKeepAliveClient
                   minLines: 1,
                   maxLines: 4,
                   onSubmitted: (_) => _send(),
-                  decoration: const InputDecoration(hintText: 'Hỏi Claude về note này…'),
+                  decoration: const InputDecoration(hintText: 'Hỏi AI về note này…'),
                 ),
               ),
               const SizedBox(width: 4),

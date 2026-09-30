@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/claude_client.dart';
+import '../core/openai_client.dart';
 import '../core/update_checker.dart';
 import '../state/providers.dart';
 import 'update_dialog.dart';
@@ -16,30 +17,62 @@ class SettingsPage extends ConsumerStatefulWidget {
 }
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
-  late final _key = TextEditingController(text: ref.read(settingsProvider).apiKey);
+  // Created eagerly: `late final` would read `ref` from dispose() if a field was never shown.
+  final _key = TextEditingController();
+  final _altKey = TextEditingController();
+  final _baseUrl = TextEditingController();
+  final _model = TextEditingController();
   bool _obscure = true;
   String? _testResult;
   bool _testing = false;
   bool _checking = false;
 
   @override
+  void initState() {
+    super.initState();
+    final s = ref.read(settingsProvider);
+    _key.text = s.apiKey;
+    _altKey.text = s.altApiKey;
+    _baseUrl.text = s.altBaseUrl;
+    _model.text = s.altModel;
+  }
+
+  @override
   void dispose() {
     _key.dispose();
+    _altKey.dispose();
+    _baseUrl.dispose();
+    _model.dispose();
     super.dispose();
   }
 
+  static String _presetHint(AppSettings s) =>
+      AiPreset.presets.where((p) => p.name == s.altProviderName).map((p) => p.hint).firstOrNull ?? '';
+
+  Future<void> _saveAi() async {
+    final notifier = ref.read(settingsProvider.notifier);
+    if (ref.read(settingsProvider).provider == AiProvider.claude) {
+      await notifier.setApiKey(_key.text);
+    } else {
+      await notifier.setAltProvider(baseUrl: _baseUrl.text, model: _model.text, apiKey: _altKey.text);
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã lưu thiết lập trợ lý AI')));
+    }
+  }
+
+  /// Sends one short prompt to the configured provider.
   Future<void> _test() async {
-    await ref.read(settingsProvider.notifier).setApiKey(_key.text);
-    final key = ref.read(settingsProvider).effectiveApiKey;
-    if (key.isEmpty) {
-      setState(() => _testResult = 'Chưa có API key.');
+    await _saveAi();
+    final client = buildAiClient(ref.read(settingsProvider));
+    if (client == null) {
+      setState(() => _testResult = 'Chưa đủ thông tin: cần API key (hoặc địa chỉ API và tên model).');
       return;
     }
     setState(() {
       _testing = true;
       _testResult = null;
     });
-    final client = ClaudeClient(key);
     try {
       final buf = StringBuffer();
       await for (final t in client.streamText(
@@ -49,7 +82,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       )) {
         buf.write(t);
       }
-      _testResult = '✅ Kết nối thành công: ${buf.toString().trim()}';
+      _testResult = '✅ ${client.label}: ${buf.toString().trim()}';
     } catch (e) {
       _testResult = '❌ $e';
     } finally {
@@ -112,38 +145,113 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ],
           ),
         ]),
-        section('Trợ lý AI (Claude)', [
-          Text(
-            'Model: ${ClaudeClient.model}. Lấy API key tại console.anthropic.com. '
-            'Key được lưu cục bộ trên máy này (SharedPreferences), không ghi vào vault.',
-            style: theme.textTheme.bodySmall,
+        section('Trợ lý AI', [
+          SegmentedButton<AiProvider>(
+            segments: const [
+              ButtonSegment(value: AiProvider.claude, icon: Icon(Icons.auto_awesome), label: Text('Claude')),
+              ButtonSegment(value: AiProvider.openAiCompatible, icon: Icon(Icons.hub_outlined), label: Text('Khác')),
+            ],
+            selected: {settings.provider},
+            onSelectionChanged: (s) async {
+              await ref.read(settingsProvider.notifier).setProvider(s.first);
+              setState(() => _testResult = null);
+            },
           ),
           const SizedBox(height: 12),
-          TextField(
-            controller: _key,
-            obscureText: _obscure,
-            decoration: InputDecoration(
-              labelText: 'Anthropic API key',
-              hintText: fromEnv ? 'Đang dùng biến môi trường ANTHROPIC_API_KEY' : 'sk-ant-…',
-              suffixIcon: IconButton(
-                icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
-                onPressed: () => setState(() => _obscure = !_obscure),
+          if (settings.provider == AiProvider.claude) ...[
+            Text(
+              'Model: ${ClaudeClient.model}. Lấy API key tại console.anthropic.com. '
+              'Key được lưu cục bộ trên máy này (SharedPreferences), không ghi vào vault.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _key,
+              obscureText: _obscure,
+              decoration: InputDecoration(
+                labelText: 'Anthropic API key',
+                hintText: fromEnv ? 'Đang dùng biến môi trường ANTHROPIC_API_KEY' : 'sk-ant-…',
+                suffixIcon: IconButton(
+                  icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                ),
+              ),
+              onSubmitted: (v) => ref.read(settingsProvider.notifier).setApiKey(v),
+            ),
+          ] else ...[
+            Text(
+              'Dùng dịch vụ theo chuẩn OpenAI (Gemini, OpenRouter, Groq, OpenAI, hoặc Ollama chạy trên máy). '
+              'Chọn sẵn một dịch vụ rồi sửa tên model nếu cần.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final p in AiPreset.presets)
+                  ChoiceChip(
+                    label: Text(p.name),
+                    selected: settings.altProviderName == p.name,
+                    onSelected: (_) async {
+                      _baseUrl.text = p.baseUrl;
+                      _model.text = p.model;
+                      await ref
+                          .read(settingsProvider.notifier)
+                          .setAltProvider(name: p.name, baseUrl: p.baseUrl, model: p.model);
+                      setState(() => _testResult = null);
+                    },
+                  ),
+              ],
+            ),
+            if (_presetHint(settings).isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(_presetHint(settings), style: theme.textTheme.bodySmall),
+              ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    controller: _baseUrl,
+                    decoration: const InputDecoration(labelText: 'Địa chỉ API', hintText: 'https://…/v1'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: _model,
+                    decoration: const InputDecoration(labelText: 'Model', hintText: 'gemini-2.0-flash'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _altKey,
+              obscureText: _obscure,
+              decoration: InputDecoration(
+                labelText: 'API key (để trống nếu dùng Ollama)',
+                suffixIcon: IconButton(
+                  icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                ),
               ),
             ),
-            onSubmitted: (v) => ref.read(settingsProvider.notifier).setApiKey(v),
-          ),
+            const SizedBox(height: 8),
+            Text(
+              'Lưu ý: các dịch vụ này không có prompt caching như Claude, nên hỏi nhiều lượt trên toàn vault sẽ tốn hơn. '
+              'Model nhỏ cũng dễ trả JSON sai khi tạo flashcard hoặc đề trắc nghiệm.',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [
-              FilledButton(
-                onPressed: () async {
-                  await ref.read(settingsProvider.notifier).setApiKey(_key.text);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã lưu API key')));
-                  }
-                },
-                child: const Text('Lưu'),
-              ),
+              FilledButton(onPressed: _saveAi, child: const Text('Lưu')),
               const SizedBox(width: 8),
               OutlinedButton(onPressed: _testing ? null : _test, child: const Text('Kiểm tra kết nối')),
               if (_testing)

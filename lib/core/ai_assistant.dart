@@ -8,10 +8,10 @@ Người dùng lưu kiến thức trong một Obsidian vault ("second brain").
 Luôn trả lời bằng tiếng Việt; giữ nguyên thuật ngữ tiếng Anh chuyên ngành khi cần.
 Định dạng bằng Markdown tương thích Obsidian. Khi nhắc tới khái niệm nên có note riêng, viết dưới dạng [[Tên khái niệm]].''';
 
-/// Note-aware prompts on top of [ClaudeClient].
+/// Note-aware prompts on top of any [AiClient] (Claude or an OpenAI-compatible model).
 class AiAssistant {
   AiAssistant(this.client);
-  final ClaudeClient client;
+  final AiClient client;
 
   static String noteContext(Note note, VaultIndex index) {
     final related = {

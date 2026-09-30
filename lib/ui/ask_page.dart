@@ -12,7 +12,7 @@ import 'widgets.dart';
 
 enum _Mode { chat, quiz }
 
-/// Ask Claude about the whole vault or one course, or generate an FE-style quiz.
+/// Ask the configured model about the whole vault or one course, or generate an FE-style quiz.
 class AskPage extends ConsumerStatefulWidget {
   const AskPage({super.key});
 
@@ -83,7 +83,7 @@ class _AskPageState extends ConsumerState<AskPage> {
     final history = List<ChatMessage>.of(_chat);
     _chat.add((role: 'assistant', content: ''));
     setState(() {
-      _busy = 'Claude đang đọc ${ctx.included.length} ghi chú…';
+      _busy = 'AI đang đọc ${ctx.included.length} ghi chú…';
       _error = null;
     });
     _scrollToEnd();
@@ -174,7 +174,7 @@ class _AskPageState extends ConsumerState<AskPage> {
       children: [
         PageHeader(
           title: 'Hỏi AI trên vault',
-          subtitle: 'Claude đọc ghi chú của bạn, trả lời kèm nguồn [[note]] và soạn đề trắc nghiệm kiểu FE.',
+          subtitle: 'AI đọc ghi chú của bạn, trả lời kèm nguồn [[note]] và soạn đề trắc nghiệm kiểu FE.',
           actions: [
             SegmentedButton<_Mode>(
               segments: const [
@@ -239,8 +239,8 @@ class _AskPageState extends ConsumerState<AskPage> {
           child: ai == null
               ? EmptyState(
                   icon: Icons.key_outlined,
-                  title: 'Chưa có Claude API key',
-                  message: 'Nhập API key trong Cài đặt để hỏi AI trên vault.',
+                  title: 'Chưa thiết lập trợ lý AI',
+                  message: 'Chọn nhà cung cấp và nhập API key trong Cài đặt để hỏi AI trên vault.',
                   action: FilledButton(
                     onPressed: () => ref.read(pageProvider.notifier).set(AppPage.settings),
                     child: const Text('Mở Cài đặt'),

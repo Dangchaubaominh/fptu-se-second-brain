@@ -10,6 +10,7 @@ import 'package:watcher/watcher.dart';
 import '../core/ai_assistant.dart';
 import '../core/claude_client.dart';
 import '../core/flashcards.dart';
+import '../core/openai_client.dart';
 import '../core/rename.dart';
 import '../core/review_stats.dart';
 import '../core/vault_index.dart';
@@ -23,14 +24,62 @@ final appVersionProvider = FutureProvider<String>((ref) async => (await PackageI
 /// Whether to look for a new GitHub release on startup (disabled in tests).
 final autoUpdateCheckProvider = Provider<bool>((ref) => true);
 
+/// Which service the AI features talk to.
+enum AiProvider { claude, openAiCompatible }
+
 class AppSettings {
-  const AppSettings({this.vaultPath, this.apiKey = '', this.themeMode = ThemeMode.system});
+  const AppSettings({
+    this.vaultPath,
+    this.apiKey = '',
+    this.themeMode = ThemeMode.system,
+    this.provider = AiProvider.claude,
+    this.altApiKey = '',
+    this.altBaseUrl = '',
+    this.altModel = '',
+    this.altProviderName = '',
+  });
+
   final String? vaultPath;
+
+  /// Anthropic key.
   final String apiKey;
   final ThemeMode themeMode;
 
+  final AiProvider provider;
+
+  /// Key, endpoint and model for the OpenAI-compatible provider.
+  final String altApiKey;
+  final String altBaseUrl;
+  final String altModel;
+  final String altProviderName;
+
   /// Falls back to the ANTHROPIC_API_KEY environment variable.
   String get effectiveApiKey => apiKey.isNotEmpty ? apiKey : (Platform.environment['ANTHROPIC_API_KEY'] ?? '');
+
+  /// True when the AI features have everything they need to run.
+  bool get aiConfigured =>
+      provider == AiProvider.claude ? effectiveApiKey.isNotEmpty : altBaseUrl.isNotEmpty && altModel.isNotEmpty;
+
+  AppSettings copyWith({
+    String? vaultPath,
+    bool clearVault = false,
+    String? apiKey,
+    ThemeMode? themeMode,
+    AiProvider? provider,
+    String? altApiKey,
+    String? altBaseUrl,
+    String? altModel,
+    String? altProviderName,
+  }) => AppSettings(
+    vaultPath: clearVault ? null : (vaultPath ?? this.vaultPath),
+    apiKey: apiKey ?? this.apiKey,
+    themeMode: themeMode ?? this.themeMode,
+    provider: provider ?? this.provider,
+    altApiKey: altApiKey ?? this.altApiKey,
+    altBaseUrl: altBaseUrl ?? this.altBaseUrl,
+    altModel: altModel ?? this.altModel,
+    altProviderName: altProviderName ?? this.altProviderName,
+  );
 }
 
 class SettingsNotifier extends Notifier<AppSettings> {
@@ -41,21 +90,45 @@ class SettingsNotifier extends Notifier<AppSettings> {
     vaultPath: _prefs.getString('vaultPath'),
     apiKey: _prefs.getString('apiKey') ?? '',
     themeMode: ThemeMode.values.byName(_prefs.getString('themeMode') ?? 'system'),
+    provider: AiProvider.values.byName(_prefs.getString('ai.provider') ?? 'claude'),
+    altApiKey: _prefs.getString('ai.altApiKey') ?? '',
+    altBaseUrl: _prefs.getString('ai.altBaseUrl') ?? '',
+    altModel: _prefs.getString('ai.altModel') ?? '',
+    altProviderName: _prefs.getString('ai.altProviderName') ?? '',
   );
 
   Future<void> setVaultPath(String? path) async {
     path == null ? await _prefs.remove('vaultPath') : await _prefs.setString('vaultPath', path);
-    state = AppSettings(vaultPath: path, apiKey: state.apiKey, themeMode: state.themeMode);
+    state = state.copyWith(vaultPath: path, clearVault: path == null);
   }
 
   Future<void> setApiKey(String key) async {
     await _prefs.setString('apiKey', key.trim());
-    state = AppSettings(vaultPath: state.vaultPath, apiKey: key.trim(), themeMode: state.themeMode);
+    state = state.copyWith(apiKey: key.trim());
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
     await _prefs.setString('themeMode', mode.name);
-    state = AppSettings(vaultPath: state.vaultPath, apiKey: state.apiKey, themeMode: mode);
+    state = state.copyWith(themeMode: mode);
+  }
+
+  Future<void> setProvider(AiProvider provider) async {
+    await _prefs.setString('ai.provider', provider.name);
+    state = state.copyWith(provider: provider);
+  }
+
+  /// Saves the OpenAI-compatible provider; empty arguments keep the old value.
+  Future<void> setAltProvider({String? name, String? baseUrl, String? model, String? apiKey}) async {
+    if (name != null) await _prefs.setString('ai.altProviderName', name);
+    if (baseUrl != null) await _prefs.setString('ai.altBaseUrl', baseUrl.trim());
+    if (model != null) await _prefs.setString('ai.altModel', model.trim());
+    if (apiKey != null) await _prefs.setString('ai.altApiKey', apiKey.trim());
+    state = state.copyWith(
+      altProviderName: name,
+      altBaseUrl: baseUrl?.trim(),
+      altModel: model?.trim(),
+      altApiKey: apiKey?.trim(),
+    );
   }
 }
 
@@ -355,10 +428,23 @@ final dueCardsProvider = Provider<List<Flashcard>>((ref) {
   return cards.where((c) => (states[c.id] ?? const CardState()).isDue(now)).toList();
 });
 
+/// Builds the client for the configured provider, or null when it isn't set up.
+AiClient? buildAiClient(AppSettings s) {
+  if (!s.aiConfigured) return null;
+  return s.provider == AiProvider.claude
+      ? ClaudeClient(s.effectiveApiKey)
+      : OpenAiCompatibleClient(
+          apiKey: s.altApiKey,
+          baseUrl: s.altBaseUrl,
+          model: s.altModel,
+          providerName: s.altProviderName.isEmpty ? 'Model' : s.altProviderName,
+        );
+}
+
 final aiProvider = Provider<AiAssistant?>((ref) {
-  final key = ref.watch(settingsProvider.select((s) => s.effectiveApiKey));
-  if (key.isEmpty) return null;
-  final client = ClaudeClient(key);
+  final settings = ref.watch(settingsProvider);
+  final client = buildAiClient(settings);
+  if (client == null) return null;
   ref.onDispose(client.close);
   return AiAssistant(client);
 });
