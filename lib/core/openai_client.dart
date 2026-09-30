@@ -20,8 +20,11 @@ class AiPreset {
     AiPreset(
       'Google Gemini',
       'https://generativelanguage.googleapis.com/v1beta/openai',
-      'gemini-2.0-flash',
-      hint: 'Lấy key ở aistudio.google.com (dạng AIza…). Có bậc miễn phí.',
+      'gemini-3.8-flash',
+      hint:
+          'Lấy key ở aistudio.google.com (dạng AIza…). Có bậc miễn phí. '
+          'Model khác: gemini-3.1-pro (mạnh hơn), gemini-3.1-flash-lite (rẻ hơn). '
+          'Tên model cũ như gemini-2.0-flash đã ngừng hỗ trợ và sẽ báo lỗi 404.',
     ),
     AiPreset(
       'OpenRouter',
@@ -53,6 +56,8 @@ class OpenAiCompatibleClient implements AiClient {
     required this.model,
     this.providerName = 'Model',
     http.Client? client,
+    this.retries = 3,
+    this.retryDelay = const Duration(seconds: 2),
   }) : baseUrl = baseUrl.trim().replaceAll(RegExp(r'/+$'), ''),
        _http = client ?? http.Client();
 
@@ -62,8 +67,18 @@ class OpenAiCompatibleClient implements AiClient {
   final String providerName;
   final http.Client _http;
 
+  /// Free tiers answer 503 ("overloaded") often, so a few automatic retries
+  /// save the user from doing it by hand.
+  final int retries;
+  final Duration retryDelay;
+
   @override
   String get label => '$providerName ($model)';
+
+  /// Smaller than Claude's: these models have tighter limits and long prompts
+  /// are what makes free tiers return 503.
+  @override
+  int get contextCharBudget => 120000;
 
   Uri get _endpoint => Uri.parse('$baseUrl/chat/completions');
 
@@ -88,12 +103,22 @@ class OpenAiCompatibleClient implements AiClient {
     int maxTokens = 8000,
     bool cacheSystem = false, // Anthropic-only; ignored here.
   }) async* {
-    final req = http.Request('POST', _endpoint)
-      ..headers.addAll(_headers)
-      ..body = jsonEncode({..._body(system, messages, maxTokens), 'stream': true});
-    final res = await _http.send(req);
-    if (res.statusCode != 200) {
-      throw AiException(describeHttpError(res.statusCode, await res.stream.bytesToString(), providerName));
+    final body = jsonEncode({..._body(system, messages, maxTokens), 'stream': true});
+    http.StreamedResponse res;
+    var attempt = 0;
+    while (true) {
+      final req = http.Request('POST', _endpoint)
+        ..headers.addAll(_headers)
+        ..body = body;
+      res = await _http.send(req);
+      if (res.statusCode == 200) break;
+      final text = await res.stream.bytesToString();
+      if (isRetryableStatus(res.statusCode) && attempt < retries - 1) {
+        await Future<void>.delayed(retryDelay * (attempt + 1));
+        attempt++;
+        continue;
+      }
+      throw AiException(describeHttpError(res.statusCode, text, providerName));
     }
     await for (final line in res.stream.transform(utf8.decoder).transform(const LineSplitter())) {
       if (!line.startsWith('data:')) continue;
@@ -134,16 +159,23 @@ class OpenAiCompatibleClient implements AiClient {
             '${jsonEncode(schema)}',
       ),
     ];
-    final res = await _http.post(
-      _endpoint,
-      headers: _headers,
-      body: jsonEncode({
-        ..._body(system, withSchema, maxTokens),
-        'response_format': {'type': 'json_object'},
-      }),
-    );
+    final payload = jsonEncode({
+      ..._body(system, withSchema, maxTokens),
+      'response_format': {'type': 'json_object'},
+    });
+    http.Response res;
+    var attempt = 0;
+    while (true) {
+      res = await _http.post(_endpoint, headers: _headers, body: payload);
+      if (res.statusCode == 200) break;
+      if (isRetryableStatus(res.statusCode) && attempt < retries - 1) {
+        await Future<void>.delayed(retryDelay * (attempt + 1));
+        attempt++;
+        continue;
+      }
+      throw AiException(describeHttpError(res.statusCode, utf8.decode(res.bodyBytes), providerName));
+    }
     final text = utf8.decode(res.bodyBytes);
-    if (res.statusCode != 200) throw AiException(describeHttpError(res.statusCode, text, providerName));
     final body = jsonDecode(text) as Map<String, dynamic>;
     final choices = body['choices'] as List?;
     if (choices == null || choices.isEmpty) throw AiException('$providerName không trả về nội dung nào.');

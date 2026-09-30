@@ -155,6 +155,47 @@ void main() {
     );
   });
 
+  test('retries when the provider is overloaded, then succeeds', () async {
+    var calls = 0;
+    final c = OpenAiCompatibleClient(
+      apiKey: 'k',
+      baseUrl: 'https://x/v1',
+      model: 'm',
+      providerName: 'Google Gemini',
+      retryDelay: Duration.zero,
+      client: MockClient((_) async {
+        calls++;
+        return calls < 3 ? _resp('{"error":{"message":"overloaded"}}', 503) : _resp(_sse(['ok']));
+      }),
+    );
+    expect(await c.streamText(system: '', messages: [(role: 'user', content: 'x')]).join(), 'ok');
+    expect(calls, 3);
+  });
+
+  test('gives up after the retries and says the provider is overloaded', () async {
+    var calls = 0;
+    final c = OpenAiCompatibleClient(
+      apiKey: 'k',
+      baseUrl: 'https://x/v1',
+      model: 'm',
+      providerName: 'Google Gemini',
+      retryDelay: Duration.zero,
+      client: MockClient((_) async {
+        calls++;
+        return _resp('{}', 503);
+      }),
+    );
+    await expectLater(
+      c.completeJson(system: '', messages: [(role: 'user', content: 'x')], schema: const {}),
+      throwsA(isA<AiException>().having((e) => e.message, 'message', contains('quá tải'))),
+    );
+    expect(calls, 3);
+  });
+
+  test('sends less vault text than Claude', () {
+    expect(_client(MockClient((_) async => _resp('{}'))).contextCharBudget, lessThan(600000));
+  });
+
   test('no key means no Authorization header (Ollama)', () async {
     final ollama = OpenAiCompatibleClient(
       apiKey: '',

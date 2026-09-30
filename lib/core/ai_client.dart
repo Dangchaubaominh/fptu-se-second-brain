@@ -15,6 +15,10 @@ abstract class AiClient {
   /// Name shown in the UI, e.g. "Claude (claude-opus-5)".
   String get label;
 
+  /// How much vault text to put in one request. Claude takes the whole vault;
+  /// smaller models (and free tiers) fail or time out on prompts that big.
+  int get contextCharBudget;
+
   /// Streams the answer in pieces, so long replies appear as they are written.
   Stream<String> streamText({
     required String system,
@@ -59,6 +63,9 @@ Map<String, dynamic> decodeJsonObject(String raw, {String? provider}) {
   }
 }
 
+/// Transient failures worth retrying: rate limits and server overload.
+bool isRetryableStatus(int status) => status == 429 || status == 500 || status == 502 || status == 503 || status == 504;
+
 String describeHttpError(int status, String body, String provider) {
   String? apiMsg;
   try {
@@ -68,8 +75,13 @@ String describeHttpError(int status, String body, String provider) {
   final hint = switch (status) {
     400 => 'Yêu cầu không hợp lệ (có thể tên model sai).',
     401 || 403 => 'API key không hợp lệ hoặc không có quyền dùng model này. Kiểm tra lại trong Cài đặt.',
-    404 => 'Không tìm thấy endpoint hoặc model. Kiểm tra địa chỉ API và tên model.',
+    404 =>
+      'Không tìm thấy endpoint hoặc model. Kiểm tra địa chỉ API và tên model '
+          '(tên model cũ hay bị nhà cung cấp ngừng hỗ trợ).',
     429 => 'Vượt giới hạn tốc độ, thử lại sau ít phút.',
+    503 =>
+      '$provider đang quá tải (đã thử lại vài lần). Chờ một lát rồi thử lại, '
+          'hoặc hỏi theo phạm vi một môn thay vì toàn bộ vault.',
     >= 500 => 'Máy chủ $provider đang lỗi hoặc quá tải, thử lại sau.',
     _ => 'Yêu cầu thất bại.',
   };

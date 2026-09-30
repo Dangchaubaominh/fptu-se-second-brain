@@ -46,6 +46,9 @@ class ClaudeClient implements AiClient {
   @override
   String get label => 'Claude ($model)';
 
+  @override
+  int get contextCharBudget => 600000;
+
   /// Streams text deltas. Used for summaries and chat so long answers
   /// render progressively and don't hit HTTP timeouts.
   @override

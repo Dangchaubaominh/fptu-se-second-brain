@@ -38,13 +38,19 @@ class _AskPageState extends ConsumerState<AskPage> {
   bool _submitted = false;
 
   // Memoized scope preview; rebuilding the context on every streamed chunk would be wasteful.
-  (VaultIndex, String?, VaultContext)? _preview;
+  (VaultIndex, String?, int, VaultContext)? _preview;
+
+  /// How much vault text the configured model can take in one request.
+  int get _budget => ref.read(aiProvider)?.client.contextCharBudget ?? 600000;
 
   VaultContext _previewFor(VaultIndex index) {
+    final budget = _budget;
     final cached = _preview;
-    if (cached != null && identical(cached.$1, index) && cached.$2 == _coursePath) return cached.$3;
-    final ctx = buildVaultContext(index, coursePath: _coursePath);
-    _preview = (index, _coursePath, ctx);
+    if (cached != null && identical(cached.$1, index) && cached.$2 == _coursePath && cached.$3 == budget) {
+      return cached.$4;
+    }
+    final ctx = buildVaultContext(index, coursePath: _coursePath, maxChars: budget);
+    _preview = (index, _coursePath, budget, ctx);
     return ctx;
   }
 
@@ -78,7 +84,7 @@ class _AskPageState extends ConsumerState<AskPage> {
     if (ai == null || text.isEmpty || _busy != null) return;
     _input.clear();
     // Keep the same context for the whole conversation so the prompt cache is reused.
-    final ctx = _chatContext ??= buildVaultContext(index, coursePath: _coursePath, question: text);
+    final ctx = _chatContext ??= buildVaultContext(index, coursePath: _coursePath, question: text, maxChars: _budget);
     _chat.add((role: 'user', content: text));
     final history = List<ChatMessage>.of(_chat);
     _chat.add((role: 'assistant', content: ''));
@@ -110,7 +116,7 @@ class _AskPageState extends ConsumerState<AskPage> {
   Future<void> _makeQuiz(VaultIndex index) async {
     final ai = ref.read(aiProvider);
     if (ai == null) return;
-    final ctx = buildVaultContext(index, coursePath: _coursePath);
+    final ctx = buildVaultContext(index, coursePath: _coursePath, maxChars: _budget);
     setState(() {
       _busy = 'Đang soạn $_quizCount câu từ ${ctx.included.length} ghi chú…';
       _error = null;
