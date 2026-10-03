@@ -49,7 +49,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           child: TextField(
             controller: _ctrl,
             focusNode: _focus,
-            autofocus: true,
+            // No autofocus: every page lives in an IndexedStack, so it would grab
+            // the cursor at startup even when another page is showing.
             onChanged: (v) => ref.read(searchQueryProvider.notifier).set(v),
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),

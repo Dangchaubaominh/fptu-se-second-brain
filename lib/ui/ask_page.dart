@@ -25,6 +25,7 @@ class _AskPageState extends ConsumerState<AskPage> {
   _Mode _mode = _Mode.chat;
   final _input = TextEditingController();
   final _scroll = ScrollController();
+  final _inputFocus = FocusNode();
   final List<ChatMessage> _chat = [];
   VaultContext? _chatContext;
   StreamSubscription<String>? _sub;
@@ -58,6 +59,7 @@ class _AskPageState extends ConsumerState<AskPage> {
   void dispose() {
     _sub?.cancel();
     _input.dispose();
+    _inputFocus.dispose();
     _scroll.dispose();
     super.dispose();
   }
@@ -168,6 +170,10 @@ class _AskPageState extends ConsumerState<AskPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Put the cursor in the question box when the user opens this page.
+    ref.listen(pageProvider, (_, p) {
+      if (p == AppPage.ask && _mode == _Mode.chat) _inputFocus.requestFocus();
+    });
     final index = ref.watch(vaultProvider).value;
     if (index == null) return const SizedBox();
     final ai = ref.watch(aiProvider);
@@ -272,20 +278,34 @@ class _AskPageState extends ConsumerState<AskPage> {
         Expanded(
           child: _chat.isEmpty
               ? Center(
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.center,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      for (final e in examples)
-                        ActionChip(
-                          avatar: const Icon(Icons.lightbulb_outline, size: 16),
-                          label: Text(e),
-                          onPressed: () {
-                            _input.text = e;
-                            _send(index);
-                          },
-                        ),
+                      Icon(Icons.forum_outlined, size: 40, color: scheme.outline),
+                      const SizedBox(height: 12),
+                      Text('Nhập câu hỏi của bạn ở ô bên dưới', style: theme.textTheme.titleMedium),
+                      const SizedBox(height: 4),
+                      Text(
+                        'hoặc bấm một gợi ý để thử nhanh',
+                        style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                      ),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          for (final e in examples)
+                            ActionChip(
+                              avatar: const Icon(Icons.lightbulb_outline, size: 16),
+                              label: Text(e),
+                              onPressed: () {
+                                _input.text = e;
+                                _send(index);
+                              },
+                            ),
+                        ],
+                      ),
                     ],
                   ),
                 )
@@ -326,10 +346,19 @@ class _AskPageState extends ConsumerState<AskPage> {
               Expanded(
                 child: TextField(
                   controller: _input,
+                  focusNode: _inputFocus,
                   minLines: 1,
                   maxLines: 5,
                   onSubmitted: (_) => _send(index),
-                  decoration: const InputDecoration(hintText: 'Hỏi bất cứ điều gì về các ghi chú của bạn…'),
+                  // Filled and outlined so the box reads as "type here", not as a thin line.
+                  decoration: InputDecoration(
+                    hintText: 'Nhập câu hỏi của bạn về ghi chú…',
+                    prefixIcon: const Icon(Icons.edit_outlined),
+                    filled: true,
+                    fillColor: scheme.surfaceContainerHigh,
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
